@@ -1,0 +1,18 @@
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+rootProject.name = "cleanyourtv-phone"
+include ':launcher', ':phone'
+// The launcher is upstream cleanyourtv's launcher module, patched to run on Android 7 (see PATCHES.md).
+project(':launcher').projectDir = file('launcher/app')

@@ -1,0 +1,47 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'tv.clean.phone'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'tv.clean.phone'
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName '1.0'
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            // Sideloaded, never published: signed with the debug key so it installs without a keystore.
+            signingConfig signingConfigs.debug
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    lint {
+        abortOnError false
+    }
+}
+
+// The launcher APK (built from :launcher, minSdk 24) travels inside this app as an asset and is pushed to the TV.
+def launcherApk = tasks.register('copyLauncherApk', Copy) {
+    dependsOn ':launcher:assembleRelease'
+    from(project(':launcher').layout.buildDirectory.dir('outputs/apk/release')) {
+        include '*.apk'
+        rename { 'launcher.apk' }
+    }
+    into 'src/main/assets'
+}
+tasks.matching { it.name ==~ /merge.*Assets/ }.configureEach {
+    dependsOn launcherApk
+}
+preBuild.dependsOn launcherApk
