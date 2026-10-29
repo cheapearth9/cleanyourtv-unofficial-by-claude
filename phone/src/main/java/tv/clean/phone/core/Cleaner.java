@@ -33,12 +33,18 @@ public final class Cleaner {
 
     // ------------------------------------------------------------------ reading the TV
 
+    /** Commands that print the activity intent filters, in the order to try them (the filter details need -f on some builds). */
+    static final String[] RESOLVER_COMMANDS = {
+        "dumpsys package -f resolvers", "dumpsys package resolvers", "dumpsys package -f", "dumpsys package"};
+
     public static ResolverTable resolverTable(TvShell sh) throws IOException {
-        String out = sh.run("dumpsys package resolvers", 120000);
-        if (!out.contains("Activity Resolver Table")) {
-            out = sh.run("dumpsys package", 240000);
+        ResolverTable first = null;
+        for (String cmd : RESOLVER_COMMANDS) {
+            ResolverTable t = ResolverTable.parse(sh.run(cmd, 240000));
+            if (first == null) first = t;
+            if (!t.components(HOME_ACTION, HOME_CAT, null).isEmpty()) return t;
         }
-        return ResolverTable.parse(out);
+        return first;
     }
 
     /** The component that answers Home now ("pkg/.Activity"), "android/..." for the chooser, or null if unknown. */
@@ -401,6 +407,10 @@ public final class Cleaner {
         Set<String> launchers = resolverTable(sh).launcherPackages();
         String resumed = resumedPackage(sh);
         log.log("Launchers that answer Home: " + launchers + "; on screen: " + resumed);
+        if (launchers.isEmpty()) {
+            // This firmware's intent table could not be read: judge by what the Home intent actually opened.
+            return OUR.equals(resumed);
+        }
         if (!launchers.contains(OUR)) return false;
         if (launchers.size() > 1) {
             Set<String> others = new LinkedHashSet<>(launchers);

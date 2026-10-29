@@ -19,9 +19,19 @@ public final class Diagnostics {
         r.append("\n== Home ==\n");
         r.append("resolves to: ").append(Cleaner.homeComponent(sh, tv)).append('\n');
         try {
-            String raw = sh.run("dumpsys package resolvers", 120000);
-            boolean hasTable = raw.contains("Activity Resolver Table");
-            if (!hasTable) raw = sh.run("dumpsys package", 240000);
+            String raw = "";
+            for (String cmd : Cleaner.RESOLVER_COMMANDS) {
+                String o = sh.run(cmd, 240000);
+                ResolverTable t = ResolverTable.parse(o);
+                r.append("[").append(cmd).append("] ").append(o.length()).append(" chars, filters parsed ").append(t.filters().size())
+                 .append(", launchers ").append(t.launcherPackages()).append('\n');
+                if (raw.isEmpty() || (t.filters().size() > ResolverTable.parse(raw).filters().size())) raw = o;
+                if (!t.components("android.intent.action.MAIN", "android.intent.category.HOME", null).isEmpty()) { raw = o; break; }
+            }
+            r.append("first lines of the table:\n");
+            int at = Math.max(0, raw.indexOf("Activity Resolver Table"));
+            String[] head = raw.substring(at).split("\n");
+            for (int i = 0; i < Math.min(14, head.length); i++) r.append("  ").append(head[i]).append('\n');
             ResolverTable rt = ResolverTable.parse(raw);
             r.append("resolver table found: ").append(raw.contains("Activity Resolver Table")).append(", filters parsed: ").append(rt.filters().size()).append('\n');
             r.append("launcher packages parsed: ").append(rt.launcherPackages()).append('\n');
