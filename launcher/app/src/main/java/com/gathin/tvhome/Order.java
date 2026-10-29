@@ -53,7 +53,7 @@ final class Order {
     }
 
     static String dockKey(List<String> dockApps) {
-        return String.join(",", dockApps);
+        return android.text.TextUtils.join(",", dockApps);
     }
 
     static String encode(Order order) {

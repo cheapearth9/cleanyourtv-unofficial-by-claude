@@ -75,7 +75,7 @@ final class GuardKeep {
             if (!found) {
                 entries.add(mine.flattenToShortString());
                 Settings.Secure.putString(context.getContentResolver(),
-                        Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, String.join(":", entries));
+                        Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, android.text.TextUtils.join(":", entries));
             }
             Settings.Secure.putInt(context.getContentResolver(), Settings.Secure.ACCESSIBILITY_ENABLED, 1);
         } catch (RuntimeException ignored) {
