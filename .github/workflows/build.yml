@@ -1,0 +1,23 @@
+name: build-apk
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - name: Self-tests (ADB client vs mock TV, clean-up logic vs fake TV)
+        run: tools/run-tests.sh
+      - name: Build launcher (minSdk 24) and phone app
+        run: ./gradlew :phone:assembleRelease --no-daemon --console=plain
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cleanyourtv-phone-apk
+          path: phone/build/outputs/apk/release/*.apk
