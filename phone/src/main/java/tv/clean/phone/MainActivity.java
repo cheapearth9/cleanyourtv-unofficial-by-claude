@@ -391,6 +391,14 @@ public class MainActivity extends Activity {
             }
         });
         root.addView(runButton, matchWrap());
+        Button diag = button("Diagnostics (launcher crash log)", false);
+        diag.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                runDiagnostics();
+            }
+        });
+        root.addView(diag, matchWrap());
         Button restore = button("Undo / restore this TV", false);
         restore.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -469,6 +477,7 @@ public class MainActivity extends Activity {
         logView.setTextSize(12);
         logView.setTextColor(TEXT);
         logView.setText("");
+        logView.setTextIsSelectable(true);
         LinearLayout c = card();
         c.addView(logView);
         root.addView(c);
@@ -563,6 +572,43 @@ public class MainActivity extends Activity {
                     summary.append("Lost contact with the TV.");
                 }
                 finish(failed, summary.toString());
+            }
+        });
+    }
+
+    private void runDiagnostics() {
+        showRun("Diagnostics for " + info.title());
+        logger.log("Starting the launcher on the TV once and reading its log (about 15 seconds)...");
+        worker.execute(new Runnable() {
+            @Override
+            public void run() {
+                String report;
+                boolean failed = false;
+                try {
+                    report = tv.clean.phone.core.Diagnostics.collect(shell, info);
+                } catch (IOException e) {
+                    report = "Lost contact with the TV: " + e.getMessage();
+                    failed = true;
+                }
+                final String text = report;
+                logger.log(text);
+                ui.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        LinearLayout root = (LinearLayout) logScroll.getChildAt(0);
+                        Button copy = button("Copy report", false);
+                        copy.setOnClickListener(new View.OnClickListener() {
+                            @Override
+                            public void onClick(View v) {
+                                android.content.ClipboardManager cm = (android.content.ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+                                cm.setPrimaryClip(android.content.ClipData.newPlainText("cleanyourtv diagnostics", text));
+                                toast("Copied. Paste it into your message.");
+                            }
+                        });
+                        root.addView(copy, matchWrap());
+                    }
+                });
+                finish(failed, failed ? "Could not finish." : "Report ready: copy it or take a photo.");
             }
         });
     }
