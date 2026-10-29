@@ -12,7 +12,8 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - uses: android-actions/setup-android@v3
+      - name: Accept Android SDK licenses
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses || true
       - name: Self-tests (ADB client vs mock TV, clean-up logic vs fake TV)
         run: tools/run-tests.sh
       - name: Build launcher (minSdk 24) and phone app
