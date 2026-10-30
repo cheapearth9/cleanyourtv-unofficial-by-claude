@@ -56,7 +56,11 @@ public final class AdbConnection implements Closeable {
     private final DataInputStream in;
     private final OutputStream out;
     private final AdbKey key;
+    /** A command that never goes quiet for {@code idleMs} may still run this long in total. */
+    static final int HARD_CAP_MS = 15 * 60 * 1000;
+
     private int maxData = 4096;
+    private boolean broken;
     private int nextLocalId = 1;
     private String banner = "";
 
@@ -78,6 +82,7 @@ public final class AdbConnection implements Closeable {
             throws IOException {
         Socket socket = new Socket();
         socket.setTcpNoDelay(true);
+        socket.setKeepAlive(true);
         socket.connect(new InetSocketAddress(host, port), 6000);
         AdbConnection c = new AdbConnection(socket, key);
         try {
@@ -91,6 +96,11 @@ public final class AdbConnection implements Closeable {
 
     public String banner() {
         return banner;
+    }
+
+    /** True after any I/O failure: the stream state is unknown, so the connection must be replaced, not reused. */
+    public boolean isBroken() {
+        return broken;
     }
 
     public int maxData() {
@@ -136,8 +146,21 @@ public final class AdbConnection implements Closeable {
 
     // ------------------------------------------------------------------ shell
 
-    /** Runs one shell command and returns its combined output and exit status. */
-    public ShellResult shell(String command, int timeoutMs) throws IOException {
+    /**
+     * Runs one shell command and returns its combined output and exit status. {@code idleMs} is how long the TV may
+     * stay silent (a busy dumpsys on a slow box prints nothing for a while); a command that keeps printing may run
+     * for up to {@link #HARD_CAP_MS}.
+     */
+    public ShellResult shell(String command, int idleMs) throws IOException {
+        try {
+            return shellInner(command, idleMs);
+        } catch (IOException | RuntimeException e) {
+            broken = true;
+            throw e;
+        }
+    }
+
+    private ShellResult shellInner(String command, int timeoutMs) throws IOException {
         String wrapped = command + "\necho \"" + RC_MARK + "$?\"";
         openStream("shell:" + wrapped);
         byte[] raw = readUntilClose(timeoutMs);
@@ -164,6 +187,15 @@ public final class AdbConnection implements Closeable {
 
     /** Copies {@code data} to {@code remotePath} on the TV with the given file mode (e.g. 0644). */
     public void push(byte[] data, String remotePath, int mode, int timeoutMs) throws IOException {
+        try {
+            pushInner(data, remotePath, mode, timeoutMs);
+        } catch (IOException | RuntimeException e) {
+            broken = true;
+            throw e;
+        }
+    }
+
+    private void pushInner(byte[] data, String remotePath, int mode, int timeoutMs) throws IOException {
         openStream("sync:");
         long deadline = System.currentTimeMillis() + timeoutMs;
         String spec = remotePath + "," + (0100000 | (mode & 0777));
@@ -243,10 +275,15 @@ public final class AdbConnection implements Closeable {
         }
     }
 
-    private byte[] readUntilClose(int timeoutMs) throws IOException {
-        long deadline = System.currentTimeMillis() + timeoutMs;
+    private byte[] readUntilClose(int idleMs) throws IOException {
+        long start = System.currentTimeMillis();
+        long hardDeadline = start + Math.max(idleMs, HARD_CAP_MS);
+        long idleDeadline = start + idleMs;
         while (!streamClosed) {
-            pump(remaining(deadline));
+            int before = inbox.size();
+            long limit = Math.min(idleDeadline, hardDeadline);
+            pump(remaining(limit, idleDeadline <= hardDeadline ? idleMs : -1));
+            if (inbox.size() != before) idleDeadline = System.currentTimeMillis() + idleMs; // output arrived: still alive
         }
         byte[] result = inbox.toByteArray();
         inbox.reset();
@@ -276,9 +313,20 @@ public final class AdbConnection implements Closeable {
     }
 
     private static int remaining(long deadline) throws IOException {
+        return remaining(deadline, -1);
+    }
+
+    /** Milliseconds until {@code deadline}; {@code idleMs} (when known) names the silence that ran out, for the message. */
+    private static int remaining(long deadline, int idleMs) throws IOException {
         long left = deadline - System.currentTimeMillis();
-        if (left <= 0) throw new SocketTimeoutException("Timed out waiting for the TV.");
+        if (left <= 0) throw timeout(idleMs);
         return (int) Math.min(left, Integer.MAX_VALUE);
+    }
+
+    private static SocketTimeoutException timeout(int idleMs) {
+        return new SocketTimeoutException(idleMs > 0
+            ? "The TV said nothing for " + (idleMs / 1000) + " s"
+            : "The TV did not answer in time");
     }
 
     // ------------------------------------------------------------------ wire
@@ -312,6 +360,8 @@ public final class AdbConnection implements Closeable {
             in.readFully(h);
         } catch (java.io.EOFException e) {
             throw new IOException("The TV closed the ADB connection.", e);
+        } catch (SocketTimeoutException e) {
+            throw new SocketTimeoutException("The TV did not answer within " + (Math.max(1, timeoutMs) / 1000) + " s");
         }
         Message m = new Message();
         m.command = getLe(h, 0);
@@ -325,7 +375,13 @@ public final class AdbConnection implements Closeable {
         m.data = new byte[len];
         if (len > 0) {
             socket.setSoTimeout(Math.max(timeoutMs, 10000));
-            in.readFully(m.data);
+            try {
+                in.readFully(m.data);
+            } catch (java.io.EOFException e) {
+                throw new IOException("The TV closed the ADB connection.", e);
+            } catch (SocketTimeoutException e) {
+                throw new SocketTimeoutException("The TV stopped in the middle of an answer");
+            }
         }
         return m;
     }

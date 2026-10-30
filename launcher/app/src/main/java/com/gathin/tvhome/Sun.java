@@ -1,7 +1,7 @@
 package com.gathin.tvhome;
 
-import java.time.LocalDate;
-import java.time.ZoneId;
+import com.gathin.tvhome.time.LocalDate;
+import com.gathin.tvhome.time.ZoneId;
 
 /**
  * Sunrise and sunset for a place, computed offline with NOAA's general solar position equations
@@ -30,7 +30,7 @@ final class Sun {
                 - Math.tan(lat) * Math.tan(decl);
         if (cosHa > 1 || cosHa < -1) return null;
         double ha = Math.toDegrees(Math.acos(cosHa));
-        int offset = zone.getRules().getOffset(date.atTime(12, 0)).getTotalSeconds() / 60;
+        int offset = zone.offsetMinutesAtNoon(date);
         return new int[]{
                 (int) Math.round(720 - 4 * (longitude + ha) - eqTime + offset),
                 (int) Math.round(720 - 4 * (longitude - ha) - eqTime + offset)};

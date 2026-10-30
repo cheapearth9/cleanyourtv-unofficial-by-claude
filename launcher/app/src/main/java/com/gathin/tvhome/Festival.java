@@ -2,8 +2,8 @@ package com.gathin.tvhome;
 
 import android.content.res.Resources;
 
-import java.time.LocalDate;
-import java.time.format.DateTimeParseException;
+import com.gathin.tvhome.time.LocalDate;
+import com.gathin.tvhome.time.DateTimeParseException;
 import java.util.Locale;
 
 /**

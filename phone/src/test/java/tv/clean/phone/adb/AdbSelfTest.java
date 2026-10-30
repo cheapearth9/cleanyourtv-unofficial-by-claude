@@ -22,6 +22,8 @@ public final class AdbSelfTest {
         AdbKey again = AdbKey.loadOrCreate(dir);
         check(Arrays.equals(key.publicKeyPayload(), again.publicKeyPayload()), "key persists across loads");
 
+        check(key.fingerprint().matches("([0-9A-F]{2}:){15}[0-9A-F]{2}") && key.fingerprint().equals(again.fingerprint()), "key fingerprint looks like the TV's dialog: " + key.fingerprint());
+
         for (int maxData : new int[] {4096, 256 * 1024}) {
             try (MockAdbd tv = new MockAdbd(maxData)) {
                 final boolean[] prompted = {false};

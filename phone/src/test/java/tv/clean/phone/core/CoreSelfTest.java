@@ -9,6 +9,23 @@ import java.util.List;
 public final class CoreSelfTest {
     static int failures;
 
+    /** A pretend Android 7.1 box with a stock launcher, Settings and the new launcher's room to install. */
+    static FakeTv fresh(int sdk) {
+        FakeTv t = new FakeTv(sdk);
+        t.stock = "com.google.android.leanbacklauncher";
+        t.installed.addAll(Arrays.asList(t.stock, "com.android.tv.settings"));
+        return t;
+    }
+
+    static void runSh(java.io.File script, java.io.File bin) throws Exception {
+        ProcessBuilder pb = new ProcessBuilder("/bin/sh", script.getPath());
+        pb.environment().put("PATH", bin.getPath() + ":" + System.getenv("PATH"));
+        pb.redirectErrorStream(true);
+        Process p = pb.start();
+        p.getInputStream().readAllBytes();
+        p.waitFor();
+    }
+
     static void check(boolean ok, String what) {
         System.out.println((ok ? "PASS  " : "FAIL  ") + what);
         if (!ok) failures++;
@@ -140,6 +157,132 @@ public final class CoreSelfTest {
         } catch (CleanException e) {
             check(e.getMessage().contains("API 22"), "API 22 TV: launcher refused with a clear message");
         }
+
+        // ---- the launcher that crashes right after `am start` (the "Launcher started." lie of an earlier version)
+        FakeTv crash = fresh(25);
+        crash.crashOnStart = true;
+        try {
+            Cleaner.installLauncher(crash, TvInfo.probe(crash), lo, log, null);
+            check(false, "a launcher that crashes on start is reported");
+        } catch (CleanException e) {
+            check(e.getMessage().contains("NoClassDefFoundError") && e.getMessage().contains("was left enabled"), "crash on start: reported with its cause (" + e.getMessage().substring(0, Math.min(90, e.getMessage().length())) + "...)");
+            check(crash.enabled(crash.stock) && crash.history.stream().noneMatch(c -> c.contains("pm disable-user")), "crash on start: stock launcher never touched");
+            check(crash.armCount == 0, "crash on start: no safety timer needed yet");
+            check(logs.stream().anyMatch(l -> l.contains("crash log from the TV")) && logs.stream().anyMatch(l -> l.contains("Caused by: java.lang.NoClassDefFoundError")), "crash log lines reach the run log");
+            check(logs.stream().noneMatch(l -> l.contains("not ours")), "another app's crash in the same log is ignored");
+        }
+
+        // ---- a launcher that starts but dies when it becomes Home: roll back, timer off
+        FakeTv late = fresh(25);
+        late.crashOnHome = true;
+        try {
+            Cleaner.installLauncher(late, TvInfo.probe(late), lo, log, null);
+            check(false, "a launcher that crashes as Home is reported");
+        } catch (CleanException e) {
+            check(late.enabled(late.stock) && e.getMessage().contains("switched back on"), "crash as Home: stock launcher switched back on");
+            check(late.armCount == 1 && !late.watchdogArmed && late.disarmCount >= 1, "crash as Home: safety timer armed, then stopped");
+            int arm = -1, disable = -1;
+            for (int i = 0; i < late.history.size(); i++) {
+                String c = late.history.get(i);
+                if (arm < 0 && c.startsWith("rm -f " + Watchdog.DIR + "/cyt-watchdog.ok")) arm = i;
+                if (disable < 0 && c.contains("pm disable-user")) disable = i;
+            }
+            check(arm >= 0 && disable > arm, "the safety timer is armed BEFORE the stock launcher is switched off");
+        }
+
+        // ---- two launchers answer Home: Android 7 shows its chooser
+        FakeTv two = fresh(25);
+        two.otherHome = "com.vendor.home";
+        two.installed.add("com.vendor.home");
+        Cleaner.LauncherResult tr = Cleaner.installLauncher(two, TvInfo.probe(two), lo, log, null);
+        check(tr.isHome && tr.note.contains("Always"), "chooser on Home: not treated as a failure, the person is told to choose Always");
+        FakeTv three = fresh(25);
+        three.otherHome = "com.vendor.home";
+        three.installed.add("com.vendor.home");
+        Cleaner.LauncherOptions both = new Cleaner.LauncherOptions();
+        both.apk = lo.apk;
+        both.stock = three.stock;
+        both.alsoDisable = new ArrayList<>(Arrays.asList("com.vendor.home", "com.android.tv.settings", "foo; reboot"));
+        Record[] rec3 = new Record[1];
+        Cleaner.LauncherResult r3 = Cleaner.installLauncher(three, TvInfo.probe(three), both, log, r -> rec3[0] = r);
+        check(r3.isHome && r3.note.isEmpty() && three.disabled.contains("com.vendor.home"), "also switching off the other launcher: Home goes straight to the new one");
+        check(!three.disabled.contains("com.android.tv.settings") && three.history.stream().noneMatch(c -> c.contains("reboot")), "core packages and odd names in alsoDisable are refused");
+        check(rec3[0] != null && rec3[0].disabled.contains("com.vendor.home"), "the other launcher is in the undo record");
+
+        // ---- shell without grep, and a TV that stops answering the input check
+        FakeTv nogrep = fresh(24);
+        nogrep.noGrep = true;
+        nogrep.hwDriver = "com.mediatek.tvinput";
+        nogrep.installed.addAll(Arrays.asList("com.mediatek.tvinput", "com.google.android.feedback"));
+        Cleaner.DebloatResult ng = Cleaner.debloat(nogrep, TvInfo.probe(nogrep), Arrays.asList("com.mediatek.tvinput", "com.google.android.feedback"), log, null);
+        check(nogrep.disabled.contains("com.google.android.feedback") && !nogrep.disabled.contains("com.mediatek.tvinput"), "no grep on the TV: falls back to the full dump, same protection");
+        FakeTv slow = fresh(24);
+        slow.failInputCheck = true;
+        slow.installed.addAll(Arrays.asList("com.google.android.feedback"));
+        Cleaner.DebloatResult sl = Cleaner.debloat(slow, TvInfo.probe(slow), Arrays.asList("com.google.android.feedback"), log, null);
+        check(slow.disabled.isEmpty() && sl.kept.stream().anyMatch(k -> k.contains("did not answer")), "input check timed out: nothing is disabled on a guess");
+
+        // ---- the crash parser ignores everything that is not our process
+        LaunchCheck lc = new LaunchCheck();
+        lc.readCrash("I/AndroidRuntime( 2999): >>>>>> START com.android.internal.os.RuntimeInit uid 2000 <<<<<<\nE/AndroidRuntime( 1): FATAL EXCEPTION: main\nE/AndroidRuntime( 1): Process: com.other, PID: 1\n");
+        check(!lc.crashed, "another app's crash and `am`'s own START line are not our crash");
+
+        // ---- diagnostics: crash first, and one failing part does not hide the others
+        FakeTv dg = fresh(25);
+        dg.installed.add("com.gathin.tvhome");
+        dg.ownInstalled = true;
+        dg.crashOnStart = true;
+        List<String> streamed = new ArrayList<>();
+        String report = Diagnostics.collect(dg, TvInfo.probe(dg), streamed::add);
+        check(report.contains("FAILED: it crashed") && report.contains("NoClassDefFoundError") && report.contains("MemTotal"), "diagnostics: crash cause and memory in the report");
+        check(streamed.size() == 5 && streamed.get(3).contains("crash log"), "diagnostics: five parts, streamed one by one, crash log before Home");
+        dg.failInputCheck = false;
+        TvShell flaky = new TvShell() {
+            @Override
+            public String run(String c, int t) throws java.io.IOException {
+                if (c.startsWith("dumpsys package -f") || c.startsWith("dumpsys package resolvers")) throw new java.net.SocketTimeoutException("The TV said nothing for 120 s");
+                return dg.run(c, t);
+            }
+
+            @Override
+            public void push(byte[] d, String p2, int m) throws java.io.IOException {
+                dg.push(d, p2, m);
+            }
+        };
+        String partial = Diagnostics.collect(flaky, TvInfo.probe(dg), null);
+        check(partial.contains("this part failed: The TV said nothing") && partial.contains("== Start attempt and crash log ==") && partial.contains("== Device =="), "diagnostics: a timeout in one part leaves the other parts intact");
+
+        // ---- the safety timer script, run for real on this machine's /bin/sh with fake pm/cmd/am
+        java.io.File dir = java.nio.file.Files.createTempDirectory("wd").toFile();
+        java.io.File bin = new java.io.File(dir, "bin");
+        bin.mkdirs();
+        java.io.File calls = new java.io.File(dir, "calls.txt");
+        for (String tool : new String[] {"pm", "cmd", "am"}) {
+            java.io.File f = new java.io.File(bin, tool);
+            java.nio.file.Files.write(f.toPath(), ("#!/bin/sh\necho \"" + tool + " $*\" >> " + calls.getPath() + "\n").getBytes("UTF-8"));
+            f.setExecutable(true);
+        }
+        String script = Watchdog.script(dir.getPath(), Arrays.asList("com.stock.launcher", "com.vendor.home"), "com.stock.launcher/.Main", 26, 2);
+        java.io.File sf = new java.io.File(dir, "cyt-watchdog.sh");
+        java.nio.file.Files.write(sf.toPath(), script.getBytes("UTF-8"));
+        // confirmed in time: nothing is touched
+        java.nio.file.Files.write(new java.io.File(dir, "cyt-watchdog.ok").toPath(), "ok\n".getBytes("UTF-8"));
+        runSh(sf, bin);
+        check(!calls.exists() && !sf.exists(), "safety timer: confirmed in time -> does nothing and removes itself");
+        // never confirmed: puts everything back
+        java.nio.file.Files.write(sf.toPath(), script.getBytes("UTF-8"));
+        runSh(sf, bin);
+        String made = calls.exists() ? new String(java.nio.file.Files.readAllBytes(calls.toPath()), "UTF-8") : "";
+        check(made.contains("pm enable --user 0 com.stock.launcher") && made.contains("pm enable --user 0 com.vendor.home")
+            && made.contains("cmd package set-home-activity --user 0 com.stock.launcher/.Main") && made.contains("am start -a android.intent.action.MAIN -c android.intent.category.HOME"),
+            "safety timer: never confirmed -> old launchers back on, Home pressed");
+        boolean refused = false;
+        try {
+            Watchdog.script(dir.getPath(), Arrays.asList("a.b; reboot"), null, 24, 60);
+        } catch (IllegalArgumentException e) {
+            refused = true;
+        }
+        check(refused, "safety timer: a package name that is not a package name is refused");
 
         System.out.println(failures == 0 ? "ALL PASSED" : failures + " FAILED");
         System.exit(failures == 0 ? 0 : 1);
