@@ -79,7 +79,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import java.io.File;
 import java.io.IOException;
-import java.time.LocalDate;
+import com.gathin.tvhome.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
@@ -2638,7 +2638,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 break;
             }
         }
-        RaceWeekend.State f1 = raceCalendar.isEmpty() ? null : RaceWeekend.at(raceCalendar, java.time.Instant.ofEpochMilli(now));
+        RaceWeekend.State f1 = raceCalendar.isEmpty() ? null : RaceWeekend.at(raceCalendar, com.gathin.tvhome.time.Instant.ofEpochMilli(now));
         List<GameDay.Turn> turns = GameDay.merge(games, f1, now);
         if (turns.isEmpty()) {
             racePanel.setVisibility(View.GONE);
@@ -2699,7 +2699,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     }
 
     private void updateRace() {        // an empty calendar (a theme without race_calendar, or a reset) hides a panel the last theme showed
-        RaceWeekend.State s = raceCalendar.isEmpty() ? null : RaceWeekend.at(raceCalendar, java.time.Instant.now());
+        RaceWeekend.State s = raceCalendar.isEmpty() ? null : RaceWeekend.at(raceCalendar, com.gathin.tvhome.time.Instant.now());
         if (s == null) {
             racePanel.setVisibility(View.GONE);
             return;
@@ -2722,9 +2722,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         }
 
         // FP1 FRI 11:00 PM   FP2 SAT 2:30 AM ...: done sessions fade, the live one is red, the next one bright.
-        java.time.format.DateTimeFormatter when = java.time.format.DateTimeFormatter.ofPattern(
+        com.gathin.tvhome.time.DateTimeFormatter when = com.gathin.tvhome.time.DateTimeFormatter.ofPattern(
                 android.text.format.DateFormat.is24HourFormat(this) ? "EEE HH:mm" : "EEE h:mm a", Locale.getDefault())
-                .withZone(java.time.ZoneId.systemDefault());
+                .withZone(com.gathin.tvhome.time.ZoneId.systemDefault());
         android.text.SpannableStringBuilder row = new android.text.SpannableStringBuilder();
         for (int i = 0; i < race.sessions.size(); i++) {
             RaceWeekend.Session session = race.sessions.get(i);

@@ -28,6 +28,7 @@ final class MockAdbd implements Runnable, AutoCloseable {
     final List<BigInteger[]> trusted = Collections.synchronizedList(new ArrayList<>());
     final Map<String, byte[]> files = Collections.synchronizedMap(new HashMap<>());
     final List<String> problems = Collections.synchronizedList(new ArrayList<>());
+    final List<Socket> clients = Collections.synchronizedList(new ArrayList<>());
     volatile int promptsShown;
     volatile int signatureLogins;
 
@@ -39,6 +40,20 @@ final class MockAdbd implements Runnable, AutoCloseable {
         t.start();
     }
 
+    /** Cuts every open connection, like a Wi-Fi hiccup or adbd restarting. */
+    void dropAll() {
+        synchronized (clients) {
+            for (Socket c : clients) {
+                try {
+                    c.close();
+                } catch (IOException ignored) {
+                    // already gone
+                }
+            }
+            clients.clear();
+        }
+    }
+
     int port() {
         return server.getLocalPort();
     }
@@ -48,9 +63,12 @@ final class MockAdbd implements Runnable, AutoCloseable {
         while (!server.isClosed()) {
             try {
                 Socket s = server.accept();
+                clients.add(s);
                 Thread t = new Thread(() -> {
                     try {
                         handle(s);
+                    } catch (java.io.EOFException | java.net.SocketException e) {
+                        // the phone hung up (or the test cut the connection): a normal end of a session
                     } catch (Exception e) {
                         if (!s.isClosed()) problems.add("mock connection error: " + e);
                     }

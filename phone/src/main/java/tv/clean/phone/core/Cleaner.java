@@ -37,28 +37,54 @@ public final class Cleaner {
     static final String[] RESOLVER_COMMANDS = {
         "dumpsys package -f resolvers", "dumpsys package resolvers", "dumpsys package -f", "dumpsys package"};
 
+    /**
+     * What the resolver table is reduced to on the TV itself (a full dump is megabytes, and a 1 GB box pushing that over
+     * Wi-Fi is what used to time out): the section headers, the filter lines and only the attributes we ever look at.
+     */
+    static final String RESOLVER_GREP = "^[A-Za-z]| filter [0-9a-f]+|Action: \"android\\.intent\\.action\\.(MAIN|VIEW)\""
+        + "|Action: \"android\\.settings\\.SETTINGS\"|Category: \"android\\.intent\\.category\\.HOME\""
+        + "|Type: \"vnd\\.android\\.cursor\\.item/channel\"";
+
+    /**
+     * Runs {@code producer | grep -E pattern} on the TV so only the useful lines cross the network. If the TV has no
+     * grep (the shell says "not found"), runs the producer alone. {@code pattern} must not contain a single quote.
+     */
+    static String filtered(TvShell sh, String producer, String pattern, int idleMs) throws IOException {
+        String out = sh.run(producer + " 2>/dev/null | grep -E '" + pattern + "'", idleMs);
+        if (missingGrep(out)) return sh.run(producer + " 2>/dev/null", idleMs);
+        return out;
+    }
+
+    static boolean missingGrep(String out) {
+        for (String l : out.split("\n")) {
+            if (l.contains("grep") && (l.contains("not found") || l.contains("No such file") || l.contains("inaccessible"))) return true;
+        }
+        return false;
+    }
+
     public static ResolverTable resolverTable(TvShell sh) throws IOException {
         ResolverTable first = null;
         for (String cmd : RESOLVER_COMMANDS) {
-            ResolverTable t = ResolverTable.parse(sh.run(cmd, 240000));
+            ResolverTable t = ResolverTable.parse(filtered(sh, cmd, RESOLVER_GREP, 120000));
             if (first == null) first = t;
             if (!t.components(HOME_ACTION, HOME_CAT, null).isEmpty()) return t;
         }
         return first;
     }
 
-    /** The component that answers Home now ("pkg/.Activity"), "android/..." for the chooser, or null if unknown. */
+    /**
+     * The component that answers Home now ("pkg/.Activity"), "pkg/" when only the package is known (Android 7), or null.
+     * On Android 7 this reads the process the system started for Home last, which is a hint, not a guarantee.
+     */
     public static String homeComponent(TvShell sh, TvInfo tv) throws IOException {
         if (tv.sdk >= 26) {
             String out = sh.run("cmd package resolve-activity --brief -a " + HOME_ACTION + " -c " + HOME_CAT, 20000);
             String last = lastLine(out);
             if (COMPONENT.matcher(last).matches()) return last;
         }
-        String dump = sh.run("dumpsys activity", 60000);
-        Matcher m = Pattern.compile("mHomeProcess:.*[: ]([A-Za-z0-9_.]+)/([A-Za-z0-9_.$]+)").matcher(dump);
-        if (m.find()) return m.group(1) + "/" + m.group(2);
-        Matcher m2 = Pattern.compile("mHomeProcess:.*[: ]([A-Za-z0-9_.]+)/").matcher(dump);
-        if (m2.find() && Guards.isValidName(m2.group(1))) return m2.group(1) + "/";
+        String dump = filtered(sh, "dumpsys activity processes", "mHomeProcess", 60000);
+        Matcher m = Pattern.compile("mHomeProcess:.*ProcessRecord\\{[0-9a-f]+ \\d+:([A-Za-z0-9_.]+)/").matcher(dump);
+        if (m.find() && Guards.isValidName(m.group(1))) return m.group(1) + "/";
         return null;
     }
 
@@ -72,7 +98,7 @@ public final class Cleaner {
     }
 
     static String resumedPackage(TvShell sh) throws IOException {
-        String dump = sh.run("dumpsys activity activities", 60000);
+        String dump = filtered(sh, "dumpsys activity activities", "ResumedActivity", 45000);
         Matcher m = Pattern.compile("(?:m|top)?ResumedActivity: ActivityRecord\\{[0-9a-f]+ u\\d+ ([A-Za-z0-9_.]+)/").matcher(dump);
         return m.find() ? m.group(1) : null;
     }
@@ -128,7 +154,7 @@ public final class Cleaner {
         if (pkgs.contains(Guards.SETUPWRAITH)) {
             String wifi = "";
             try {
-                wifi = sh.run("dumpsys wifi", 40000);
+                wifi = filtered(sh, "dumpsys wifi", "cname=", 60000);
             } catch (IOException ignored) {
                 // treated as unreadable below
             }
@@ -151,9 +177,16 @@ public final class Cleaner {
             List<String> chunk = checkInputs.subList(i, Math.min(i + 12, checkInputs.size()));
             StringBuilder cmd = new StringBuilder("for p in");
             for (String p : chunk) cmd.append(' ').append(p);
-            cmd.append("; do echo \"@@PKG $p\"; dumpsys package $p 2>/dev/null; done");
+            cmd.append("; do echo \"@@PKG $p\"; dumpsys package $p 2>/dev/null | grep -E '" + INPUT_GREP + "'; done");
             try {
-                for (String[] pr : parseInputCheck(sh.run(cmd.toString(), 90000))) {
+                String dumpOut = sh.run(cmd.toString(), 120000);
+                if (missingGrep(dumpOut)) {
+                    cmd = new StringBuilder("for p in");
+                    for (String p : chunk) cmd.append(' ').append(p);
+                    cmd.append("; do echo \"@@PKG $p\"; dumpsys package $p 2>/dev/null; done");
+                    dumpOut = sh.run(cmd.toString(), 120000);
+                }
+                for (String[] pr : parseInputCheck(dumpOut)) {
                     if (pr[1].equals("HW")) {
                         pkgs.remove(pr[0]);
                         res.kept.add(pr[0] + " (drives the HDMI/AV/tuner inputs: disabling it can leave them black)");
@@ -163,7 +196,12 @@ public final class Cleaner {
                     }
                 }
             } catch (IOException e) {
-                log.log("Could not run the HDMI input check on this batch: " + e.getMessage());
+                // A timeout here must not look like "no driver found": the whole chunk stays enabled.
+                for (String p : chunk) {
+                    pkgs.remove(p);
+                    res.kept.add(p + " (the TV did not answer the HDMI input check in time)");
+                }
+                log.log("Could not run the HDMI input check on this batch (" + e.getMessage() + "); those apps were left alone.");
             }
         }
 
@@ -231,6 +269,10 @@ public final class Cleaner {
         return res;
     }
 
+    /** What the input-driver check keeps of each package's dump (see parseInputCheck). */
+    static final String INPUT_GREP = "requested permissions:|grantedPermissions:|install permissions:|runtime permissions:"
+        + "|TV_INPUT_HARDWARE|Unable to find|User [0-9]+:|Service Resolver Table|android\\.media\\.tv\\.TvInputService|Package \\[|userId=";
+
     /** Test hook: pairs of {package, "HW"|"NOCHK"|"OK"} from the batched dumpsys output. */
     static List<String[]> parseInputCheck(String out) {
         List<String[]> r = new ArrayList<>();
@@ -249,6 +291,8 @@ public final class Cleaner {
                 status = body.contains("android.media.tv.TvInputService") ? "HW" : "OK";
             } else if (body.contains("Unable to find")) {
                 status = "OK";
+            } else if (body.contains("Package [") && body.contains("userId=")) {
+                status = "OK";   // a readable package record that asks for no permissions at all cannot hold TV_INPUT_HARDWARE
             } else {
                 status = "NOCHK";
             }
@@ -294,6 +338,8 @@ public final class Cleaner {
         public byte[] apk;
         /** Stock launcher to disable once the new one runs; null or empty leaves every launcher as it is. */
         public String stock;
+        /** Other launchers to switch off as well, so Android 7 never shows its "which Home app?" chooser. Optional. */
+        public List<String> alsoDisable = new ArrayList<>();
         public boolean inputKeyService;
         public boolean homeKeyService;
         /** Recommended dock layout (upstream config.json) to apply, or null. */
@@ -305,6 +351,9 @@ public final class Cleaner {
         public boolean isHome;
         public String note = "";
     }
+
+    /** How long the TV-side safety timer waits for the phone before it puts the old launcher back. */
+    static final int WATCHDOG_SECONDS = 180;
 
     public static LauncherResult installLauncher(TvShell sh, TvInfo tv, LauncherOptions o, Log log, RecordSink sink)
             throws IOException, CleanException {
@@ -319,18 +368,22 @@ public final class Cleaner {
         if (!stock.isEmpty() && (!Guards.isValidName(stock) || Guards.isCore(stock))) {
             throw new CleanException("Refusing to disable " + stock + ".");
         }
+        List<String> others = new ArrayList<>();
+        for (String p : o.alsoDisable) {
+            if (Guards.isValidName(p) && !Guards.isCore(p) && !p.equals(OUR) && !p.equals(stock) && !others.contains(p)) others.add(p);
+        }
 
         String homeBefore = homeComponent(sh, tv);
-        log.log("Home is currently: " + (homeBefore == null ? "unknown" : homeBefore));
+        log.log("Home is currently: " + (homeBefore == null ? "unknown" : Guards.pkgOf(homeBefore)));
 
         log.log("Pushing the launcher (" + (o.apk.length / 1024) + " KB)...");
         sh.push(o.apk, "/data/local/tmp/tvhome.apk", 0644);
-        String out = sh.run("pm install -r /data/local/tmp/tvhome.apk 2>&1; rm -f /data/local/tmp/tvhome.apk", 180000);
+        String out = sh.run("pm install -r /data/local/tmp/tvhome.apk 2>&1; rm -f /data/local/tmp/tvhome.apk", 240000);
         if (!out.contains("Success")) {
             if (out.contains("INSTALL_FAILED_UPDATE_INCOMPATIBLE") || out.contains("signatures do not match")) {
                 log.log("A launcher signed with a different key is installed; replacing it...");
                 sh.push(o.apk, "/data/local/tmp/tvhome.apk", 0644);
-                out = sh.run("pm uninstall " + OUR + " 2>&1; pm install -r /data/local/tmp/tvhome.apk 2>&1; rm -f /data/local/tmp/tvhome.apk", 180000);
+                out = sh.run("pm uninstall " + OUR + " 2>&1; pm install -r /data/local/tmp/tvhome.apk 2>&1; rm -f /data/local/tmp/tvhome.apk", 240000);
             }
             if (!out.contains("Success")) throw new CleanException(explainInstallFailure(out, tv));
         }
@@ -341,27 +394,29 @@ public final class Cleaner {
             + "am force-stop " + OUR + "; case \"$s\" in *" + OUR + "*) settings put secure enabled_accessibility_services \"\"; "
             + "settings put secure enabled_accessibility_services \"$s\"; settings put secure accessibility_enabled \"$a\" ;; esac", 30000);
 
-        boolean takeHome = !stock.isEmpty();
-        String start = takeHome
-            ? "am start -W -a " + HOME_ACTION + " -c " + HOME_CAT + " -n " + OUR + "/.MainActivity 2>&1"
-            : "am start -W -n " + OUR + "/.MainActivity 2>&1";
-        String started = sh.run(start, 60000);
-        boolean errorLine = false;
-        for (String l : started.split("\n")) if (l.trim().toLowerCase(Locale.ROOT).startsWith("error")) errorLine = true;
-        boolean statusOk = started.contains("Status: ok");
-        boolean statusBad = started.contains("Status:") && !statusOk;
-        if (errorLine || statusBad || (!statusOk && !OUR.equals(resumedPackage(sh)))) {
-            throw new CleanException("The new launcher did not start (" + lastLine(started) + "). "
-                + (takeHome ? stock + " was left enabled." : "Nothing else was changed."));
-        }
-        log.log("Launcher started.");
-
-        sh.run("pm grant " + OUR + " android.permission.ACCESS_FINE_LOCATION 2>/dev/null; "
-            + "cmd package compile -m speed -f " + OUR + " 2>/dev/null; true", 180000);
-
+        sh.run("pm grant " + OUR + " android.permission.ACCESS_FINE_LOCATION 2>/dev/null; true", 30000);
         if (o.config != null) {
             pushConfig(sh, o.config);
             log.log("Applied the recommended dock layout.");
+        }
+
+        // Step 1: start it WITHOUT touching Home, and watch it. Only a launcher that stays on screen goes any further.
+        boolean takeHome = !stock.isEmpty();
+        log.log("Starting the launcher and watching it for a few seconds...");
+        LaunchCheck first = LaunchCheck.run(sh, "am start -n " + OUR + "/.MainActivity", false);
+        if (!first.up) {
+            reportCrash(first, log);
+            throw new CleanException("The new launcher did not run on this TV: " + first.failureReason() + ". "
+                + (takeHome ? stock + " was left enabled." : "Nothing else was changed."));
+        }
+        log.log("Launcher is running.");
+        if (tv.sdk >= 26) {
+            // slow on a small box and not needed to run: after the safe part, and never fatal
+            try {
+                sh.run("cmd package compile -m speed -f " + OUR + " 2>/dev/null; true", 240000);
+            } catch (IOException e) {
+                log.log("Skipped pre-compiling the launcher (" + e.getMessage() + ").");
+            }
         }
 
         LauncherResult res = new LauncherResult();
@@ -372,24 +427,54 @@ public final class Cleaner {
 
         if (takeHome) {
             if (rec.stock.isEmpty()) rec.stock = stock;
-            if (tv.sdk >= 26 && rec.home.isEmpty() && homeBefore != null && homeBefore.startsWith(stock + "/")) rec.home = homeBefore;
+            if (tv.sdk >= 26 && rec.home.isEmpty() && homeBefore != null && homeBefore.startsWith(stock + "/") && !homeBefore.endsWith("/")) {
+                rec.home = homeBefore;
+            }
+            for (String p : others) if (!rec.disabled.contains(p)) rec.disabled.add(p);
             saveRecord(sh, rec, sink);
-            log.log("Handing Home to the new launcher (disabling " + stock + ")...");
-            sh.run("pm disable-user --user 0 " + stock + " 2>&1", 40000);
+
+            List<String> back = new ArrayList<>();
+            back.add(stock);
+            back.addAll(others);
+            Watchdog.arm(sh, back, rec.home.isEmpty() ? null : rec.home, tv.sdk, WATCHDOG_SECONDS, log);
+
+            log.log("Handing Home to the new launcher (disabling " + stock + (others.isEmpty() ? "" : " and " + others.size() + " other launcher(s)") + ")...");
+            StringBuilder off = new StringBuilder();
+            for (String p : back) off.append("pm disable-user --user 0 ").append(p).append(" 2>&1; ");
+            off.append("true");
+            sh.run(off.toString(), 60000);
             if (tv.sdk >= 26) {
                 sh.run("cmd package set-home-activity --user 0 " + OUR + "/.MainActivity 2>&1", 30000);
             }
-            sh.run("am start -a " + HOME_ACTION + " -c " + HOME_CAT + " 2>&1", 30000);
-            res.isHome = verifyHome(sh, tv, log, res);
-            if (!res.isHome) {
-                rollbackHome(sh, tv, stock, rec.home, log);
-                throw new CleanException("Home did not move to the new launcher, so " + stock + " was switched back on. "
-                    + "On Google TV this usually means the setup wizard (" + Guards.SETUPWRAITH + ") also answers Home: "
-                    + "tick it in the clean-up list (re-join Wi-Fi on the TV first if it was protected) and run again.");
+            // Press Home like the remote does, then watch what answers it (and whether it survives).
+            LaunchCheck home = LaunchCheck.run(sh, "am start -a " + HOME_ACTION + " -c " + HOME_CAT, true);
+            boolean ok = home.up;
+            if (!ok && home.chooser) {
+                ok = true;
+                res.note = "Android is asking which Home app to use: choose the new launcher and tick Always.";
             }
+            if (ok && tv.sdk >= 26 && !home.up) {
+                String h = homeComponent(sh, tv);
+                ok = h != null && h.startsWith(OUR + "/");
+            }
+            res.isHome = ok;
+            log.log("Home press result: " + (home.up ? "the new launcher answered" : home.chooser ? "Android shows its chooser" : home.failureReason()));
+            if (!ok) {
+                reportCrash(home, log);
+                rollbackHome(sh, tv, back, rec.home, log);
+                Watchdog.disarm(sh, log);
+                String why = home.crashed
+                    ? "The new launcher crashed when it became Home (" + home.cause + "), so " + stock + " was switched back on."
+                    : "Home did not move to the new launcher (" + home.failureReason() + "), so " + stock + " was switched back on. "
+                        + "If another launcher answers Home, tick \"also switch off the other launchers\" and run again.";
+                throw new CleanException(why);
+            }
+            Watchdog.disarm(sh, log);
+            log.log("The new launcher is Home.");
         } else {
             saveRecord(sh, rec, sink);
-            res.note = "The launcher is installed and running, but " + (homeBefore == null ? "the current" : homeBefore) + " still owns the Home button.";
+            res.note = "The launcher is installed and running, but " + (homeBefore == null ? "the current Home app" : Guards.pkgOf(homeBefore))
+                + " still owns the Home button.";
         }
 
         if (o.inputKeyService) enableService(sh, "InputKeyService");
@@ -397,40 +482,30 @@ public final class Cleaner {
         return res;
     }
 
-    private static boolean verifyHome(TvShell sh, TvInfo tv, Log log, LauncherResult res) throws IOException {
-        if (tv.sdk >= 26) {
-            String home = homeComponent(sh, tv);
-            log.log("Home now resolves to " + home);
-            return home != null && home.startsWith(OUR + "/");
+    private static void reportCrash(LaunchCheck c, Log log) {
+        if (!c.crashed) return;
+        log.log("--- crash log from the TV ---");
+        int n = 0;
+        for (String l : c.crashLines) {
+            if (n++ >= 40) break;
+            log.log("  " + l);
         }
-        // Android 7: no resolve-activity. Ask what can answer Home now, and what is on screen.
-        Set<String> launchers = resolverTable(sh).launcherPackages();
-        String resumed = resumedPackage(sh);
-        log.log("Launchers that answer Home: " + launchers + "; on screen: " + resumed);
-        if (launchers.isEmpty()) {
-            // This firmware's intent table could not be read: judge by what the Home intent actually opened.
-            return OUR.equals(resumed);
-        }
-        if (!launchers.contains(OUR)) return false;
-        if (launchers.size() > 1) {
-            Set<String> others = new LinkedHashSet<>(launchers);
-            others.remove(OUR);
-            res.note = "Another launcher also answers Home (" + others + "): if Android asks which to use on the first Home press, pick the new one and choose Always.";
-        }
-        return OUR.equals(resumed) || launchers.size() == 1;
+        log.log("--- end ---");
     }
 
-    private static void rollbackHome(TvShell sh, TvInfo tv, String stock, String homeComponent, Log log) {
+    private static void rollbackHome(TvShell sh, TvInfo tv, List<String> packages, String homeComponent, Log log) {
         try {
-            sh.run("pm enable --user 0 " + stock + " 2>&1", 30000);
-            if (tv.sdk >= 26) {
-                String comp = homeComponent != null && COMPONENT.matcher(homeComponent).matches() ? homeComponent
-                    : "$(cmd package resolve-activity --brief -a " + HOME_ACTION + " -c " + HOME_CAT + " " + stock + " | tail -n 1)";
-                sh.run("cmd package set-home-activity --user 0 " + comp + " 2>&1", 30000);
+            StringBuilder on = new StringBuilder();
+            for (String p : packages) on.append("pm enable --user 0 ").append(p).append(" 2>&1; ");
+            sh.run(on.append("true").toString(), 40000);
+            if (tv.sdk >= 26 && homeComponent != null && COMPONENT.matcher(homeComponent).matches()) {
+                sh.run("cmd package set-home-activity --user 0 " + homeComponent + " 2>&1", 30000);
             }
-            log.log(stock + " is enabled again.");
+            sh.run("am start -a " + HOME_ACTION + " -c " + HOME_CAT + " 2>&1", 30000);
+            log.log("The old launcher is enabled again.");
         } catch (IOException e) {
-            log.log("Could not switch " + stock + " back on automatically: run  pm enable --user 0 " + stock + "  over ADB. (" + e.getMessage() + ")");
+            log.log("Could not switch the old launcher back on automatically (" + e.getMessage() + "). "
+                + "The safety timer on the TV will do it within a few minutes; otherwise run  pm enable --user 0 " + packages.get(0) + "  over ADB.");
         }
     }
 
@@ -457,7 +532,7 @@ public final class Cleaner {
             + " ;; *) settings put secure enabled_accessibility_services \"$s:" + svc + "\" ;; esac; settings put secure accessibility_enabled 1", 40000);
     }
 
-    /** Puts the dock layout where the launcher reads it, then restarts the launcher (as upstream tools/theme.sh). */
+    /** Puts the dock layout where the launcher reads it (as upstream tools/theme.sh); the caller starts the launcher. */
     static void pushConfig(TvShell sh, byte[] json) throws IOException {
         String dir = "/sdcard/Android/data/" + OUR + "/files";
         String tmp = "/data/local/tmp/cyt-theme-config.json";
@@ -465,7 +540,6 @@ public final class Cleaner {
         sh.run("mkdir -p " + dir + " 2>/dev/null; rm -f " + dir + "/config.json 2>/dev/null; "
             + "{ o=$(content write --uri content://" + OUR + ".theme/config.json < " + tmp + " 2>&1) && case \"$o\" in *'Unsupported operation'*) false ;; esac; } "
             + "|| cp " + tmp + " " + dir + "/config.json 2>/dev/null; rm -f " + tmp, 40000);
-        sh.run("am force-stop " + OUR + "; am start -W -n " + OUR + "/.MainActivity 2>&1", 40000);
     }
 
     // ------------------------------------------------------------------ restore
@@ -514,6 +588,7 @@ public final class Cleaner {
             else res.failed.add(p);
         }
         sh.run("rm -f " + RECORD_PATH, 15000);
+        if (!rec.stock.isEmpty()) sh.run("am start -a " + HOME_ACTION + " -c " + HOME_CAT + " 2>&1; true", 30000);
         return res;
     }
 

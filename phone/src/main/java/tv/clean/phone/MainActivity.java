@@ -9,6 +9,11 @@ import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.PowerManager;
+import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
+import android.net.wifi.WifiManager;
 import android.text.InputType;
 import android.view.Gravity;
 import android.view.View;
@@ -18,6 +23,7 @@ import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.ScrollView;
 import android.widget.Spinner;
 import android.widget.ArrayAdapter;
@@ -63,8 +69,10 @@ public class MainActivity extends Activity {
 
     private Db db;
     private String dbError;
-    private AdbConnection conn;
     private AdbTvShell shell;
+    private PowerManager.WakeLock wakeLock;
+    private WifiManager.WifiLock wifiLock;
+    private String keyFingerprint = "";
     private TvInfo info;
     private Planner.Plan plan;
     private String homeComponent;
@@ -77,6 +85,10 @@ public class MainActivity extends Activity {
     private CheckBox inputKeyBox;
     private CheckBox homeKeyBox;
     private Spinner stockSpinner;
+    private CheckBox alsoDisableBox;
+    private TextView countView;
+    private LinearLayout details;
+    private ProgressBar progress;
 
     private TextView logView;
     private ScrollView logScroll;
@@ -107,7 +119,8 @@ public class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        final AdbConnection c = conn;
+        final AdbTvShell c = shell;
+        releaseConnectionHolds();
         worker.execute(new Runnable() {
             @Override
             public void run() {
@@ -119,7 +132,7 @@ public class MainActivity extends Activity {
 
     @Override
     public void onBackPressed() {
-        if (conn != null && info != null && runButton != null) {
+        if (shell != null && info != null && runButton != null) {
             disconnect();
         } else {
             super.onBackPressed();
@@ -130,7 +143,8 @@ public class MainActivity extends Activity {
 
     private void showConnect() {
         LinearLayout root = page();
-        root.addView(title("CleanYourTV Phone"));
+        root.addView(title("CleanYourTV"));
+        root.addView(pill("Not connected", DIM));
         root.addView(dim("Unofficial phone version of the open-source cleanyourtv project. Removes ad and tracker apps from "
             + "an Android TV over Wi-Fi and gives it a clean home screen. Nothing is uninstalled; one tap restores it."));
 
@@ -234,15 +248,27 @@ public class MainActivity extends Activity {
             public void run() {
                 try {
                     if (db == null) throw new IOException("TV database not loaded: " + dbError);
-                    AdbKey key = AdbKey.loadOrCreate(getFilesDir());
-                    AdbConnection c = AdbConnection.connect(h, port, key, 120000, new AdbConnection.Status() {
+                    ui.post(new Runnable() {
                         @Override
-                        public void onStatus(String m) {
-                            setStatus(m);
+                        public void run() {
+                            holdConnectionAlive();
                         }
                     });
-                    conn = c;
-                    shell = new AdbTvShell(c);
+                    final AdbKey key = AdbKey.loadOrCreate(getFilesDir());
+                    keyFingerprint = key.fingerprint();
+                    AdbTvShell s = new AdbTvShell(h, port, key, new AdbConnection.Status() {
+                        @Override
+                        public void onStatus(String m) {
+                            setStatus(m + "\n\nThe TV shows this fingerprint:\n" + keyFingerprint);
+                        }
+                    }, new AdbTvShell.Notes() {
+                        @Override
+                        public void note(String m) {
+                            logger.log(m);
+                        }
+                    });
+                    s.open(120000);
+                    shell = s;
                     setStatus("Connected. Reading the TV...");
                     info = TvInfo.probe(shell);
                     plan = Planner.plan(db, info);
@@ -255,11 +281,12 @@ public class MainActivity extends Activity {
                         }
                     });
                 } catch (final Exception e) {
-                    if (conn != null) conn.close();
-                    conn = null;
+                    if (shell != null) shell.close();
+                    shell = null;
                     ui.post(new Runnable() {
                         @Override
                         public void run() {
+                            releaseConnectionHolds();
                             connect.setEnabled(true);
                             setStatus(explainConnectError(e, h, port));
                         }
@@ -267,6 +294,55 @@ public class MainActivity extends Activity {
                 }
             }
         });
+    }
+
+    /** Keeps Wi-Fi and the CPU awake for the session and pins traffic to Wi-Fi (a phone that prefers mobile data would cut the link). */
+    private void holdConnectionAlive() {
+        try {
+            WifiManager wm = (WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE);
+            if (wm != null && wifiLock == null) {
+                wifiLock = wm.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "cleanyourtv");
+                wifiLock.setReferenceCounted(false);
+            }
+            if (wifiLock != null && !wifiLock.isHeld()) wifiLock.acquire();
+        } catch (RuntimeException ignored) {
+            // best effort
+        }
+        try {
+            PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
+            if (pm != null && wakeLock == null) {
+                wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "cleanyourtv:adb");
+                wakeLock.setReferenceCounted(false);
+            }
+            if (wakeLock != null && !wakeLock.isHeld()) wakeLock.acquire(60 * 60 * 1000L);
+        } catch (RuntimeException ignored) {
+            // best effort
+        }
+        try {
+            ConnectivityManager cm = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
+            if (cm != null) {
+                for (Network n : cm.getAllNetworks()) {
+                    NetworkCapabilities nc = cm.getNetworkCapabilities(n);
+                    if (nc != null && nc.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
+                        cm.bindProcessToNetwork(n);
+                        break;
+                    }
+                }
+            }
+        } catch (RuntimeException ignored) {
+            // best effort
+        }
+    }
+
+    private void releaseConnectionHolds() {
+        try {
+            if (wifiLock != null && wifiLock.isHeld()) wifiLock.release();
+            if (wakeLock != null && wakeLock.isHeld()) wakeLock.release();
+            ConnectivityManager cm = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
+            if (cm != null) cm.bindProcessToNetwork(null);
+        } catch (RuntimeException ignored) {
+            // best effort
+        }
     }
 
     private void loadLauncherChoices() {
@@ -309,34 +385,72 @@ public class MainActivity extends Activity {
     private void showReview() {
         boxes.clear();
         LinearLayout root = page();
+        root.addView(pill("Connected", ACCENT));
         root.addView(title(info.title().isEmpty() ? "Your TV" : info.title()));
         root.addView(dim(info.androidLabel() + (info.leanback ? "" : "  -  not reporting Android TV features")));
         if ("0".equals(info.adbSecure)) {
             root.addView(warn("This TV reports ro.adb.secure=0: anyone on your network can get a shell on it. Turn debugging off when you are done."));
         }
-        if (plan.best != null) {
-            LinearLayout c = card();
-            c.addView(body("Matched: " + plan.best.tv));
-            if (!plan.best.notes.isEmpty()) c.addView(dim(plan.best.notes));
-            root.addView(c);
-        } else if (!plan.matches.isEmpty()) {
-            root.addView(dim("Close matches: " + plan.matches.get(0).model.tv + ". Using the cross-TV scan below."));
-        } else {
-            root.addView(dim("This model is not in the database of " + db.models.size()
-                + " TVs, so the list below comes from what many other TVs disable, limited to apps installed here."));
-        }
 
-        // ---- launcher
-        root.addView(section("Clean home screen"));
+        // ---- the headline: what is about to happen, in one card
+        LinearLayout head = card();
+        countView = new TextView(this);
+        countView.setTextColor(TEXT);
+        countView.setTextSize(22);
+        countView.setTypeface(Typeface.DEFAULT_BOLD);
+        head.addView(countView);
+        head.addView(dim("Apps are switched off, never deleted. A restore point is saved on the TV and on this phone first, "
+            + "and the TV puts the old launcher back by itself if this phone loses contact during the hand-over."));
+        if (plan.best != null) {
+            head.addView(dim("Matched: " + plan.best.tv + (plan.best.notes.isEmpty() ? "" : " - " + plan.best.notes)));
+        } else if (!plan.matches.isEmpty()) {
+            head.addView(dim("Close match: " + plan.matches.get(0).model.tv + ". Using the cross-TV scan."));
+        } else {
+            head.addView(dim("This model is not among the " + db.models.size()
+                + " TVs in the database, so the list comes from what many other TVs disable, limited to apps installed here."));
+        }
+        root.addView(head);
+
+        runButton = button("Make it clean", true);
+        runButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                confirmAndRun();
+            }
+        });
+        root.addView(runButton, matchWrap());
+        final Button customise = button("Customise", false);
+        root.addView(customise, matchWrap());
+
+        // ---- details (hidden until Customise)
+        details = new LinearLayout(this);
+        details.setOrientation(LinearLayout.VERTICAL);
+        details.setVisibility(View.GONE);
+        customise.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                boolean open = details.getVisibility() == View.GONE;
+                details.setVisibility(open ? View.VISIBLE : View.GONE);
+                customise.setText(open ? "Hide the list" : "Customise");
+            }
+        });
+
+        details.addView(section("Clean home screen"));
         LinearLayout lc = card();
         boolean canLauncher = info.sdk >= 24;
-        installLauncherBox = check("Install the clean launcher", canLauncher);
+        installLauncherBox = check("Install the clean launcher", canLauncher && hasLauncherAsset());
         installLauncherBox.setEnabled(canLauncher);
+        installLauncherBox.setOnCheckedChangeListener(new android.widget.CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(android.widget.CompoundButton b, boolean on) {
+                updateCount();
+            }
+        });
         lc.addView(installLauncherBox);
         if (!canLauncher) {
             lc.addView(dim("This TV runs Android API " + info.sdk + "; the launcher needs Android 7.0+. Clean-up still works."));
         } else {
-            lc.addView(dim("Replace this Home app with the new launcher (it is started first; your old one is only disabled once the new one works):"));
+            lc.addView(dim("Replace this Home app with the new launcher. It is started and watched first; your old one is only switched off once the new one runs:"));
             stockSpinner = new Spinner(this);
             List<String> labels = new ArrayList<>();
             labels.add("Keep the current Home app (launcher is installed but Home stays as is)");
@@ -348,6 +462,10 @@ public class MainActivity extends Activity {
             if (sel < 0 && launcherChoices.size() == 1) sel = 0;
             stockSpinner.setSelection(sel >= 0 ? sel + 1 : 0);
             lc.addView(stockSpinner, matchWrap());
+            if (launcherChoices.size() > 1) {
+                alsoDisableBox = check("Also switch off the other launchers, so Home never asks which one to use (" + launcherChoices.size() + " found)", false);
+                lc.addView(alsoDisableBox);
+            }
             if (plan.best != null && plan.best.hasConfig) {
                 layoutBox = check("Apply the dock layout tested on " + plan.best.tv, true);
                 lc.addView(layoutBox);
@@ -358,39 +476,38 @@ public class MainActivity extends Activity {
             lc.addView(homeKeyBox);
             if (!hasLauncherAsset()) lc.addView(warn("This build of the app does not contain the launcher APK (build it with the full project)."));
         }
-        root.addView(lc);
+        details.addView(lc);
 
-        // ---- debloat
-        root.addView(section("Clean up (apps are disabled, not deleted)"));
+        details.addView(section("Clean up (apps are disabled, not deleted)"));
         String[] tierNames = {"From this TV's own list", "Disabled on many TVs", "Optional: seen on a few TVs, or features some people use"};
         int shown = 0;
         for (int tier = 0; tier < 3; tier++) {
             List<Planner.Item> items = new ArrayList<>();
             for (Planner.Item it : plan.items) if (it.tier == tier) items.add(it);
             if (items.isEmpty()) continue;
-            root.addView(body(tierNames[tier] + " (" + items.size() + ")"));
+            details.addView(body(tierNames[tier] + " (" + items.size() + ")"));
             LinearLayout tc = card();
             for (Planner.Item it : items) {
                 CheckBox cb = check(it.pkg, it.checked);
+                cb.setOnCheckedChangeListener(new android.widget.CompoundButton.OnCheckedChangeListener() {
+                    @Override
+                    public void onCheckedChanged(android.widget.CompoundButton b, boolean on) {
+                        updateCount();
+                    }
+                });
                 tc.addView(cb);
                 tc.addView(dim("    " + it.why));
                 boxes.put(it.pkg, cb);
                 shown++;
             }
-            root.addView(tc);
+            details.addView(tc);
         }
-        if (shown == 0) root.addView(dim("Nothing to offer: no known ad or bloat apps are enabled on this TV."));
-        root.addView(dim("Protected automatically: Android core, HDMI/tuner drivers, Settings, the Wi-Fi setup app when it owns your network, and launchers."));
+        if (shown == 0) details.addView(dim("Nothing to offer: no known ad or bloat apps are enabled on this TV."));
+        details.addView(dim("Protected automatically: Android core, HDMI/tuner drivers, Settings, the Wi-Fi setup app when it owns your network, and launchers."));
+        root.addView(details);
+        updateCount();
 
-        // ---- actions
-        runButton = button("Start", true);
-        runButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                confirmAndRun();
-            }
-        });
-        root.addView(runButton, matchWrap());
+        // ---- the rest
         Button diag = button("Diagnostics (launcher crash log)", false);
         diag.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -407,7 +524,7 @@ public class MainActivity extends Activity {
             }
         });
         root.addView(restore, matchWrap());
-        Button bye = button("Disconnect", false);
+        Button bye = button("Not this TV? Enter the address", false);
         bye.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -416,6 +533,17 @@ public class MainActivity extends Activity {
         });
         root.addView(bye, matchWrap());
         setContentView(scroll(root));
+    }
+
+    private void updateCount() {
+        if (countView == null) return;
+        int n = 0;
+        for (CheckBox cb : boxes.values()) if (cb.isChecked()) n++;
+        boolean launcher = installLauncherBox != null && installLauncherBox.isChecked();
+        String t = n + (n == 1 ? " thing" : " things") + " to switch off";
+        if (launcher) t += " + a clean launcher";
+        countView.setText(t);
+        if (runButton != null) runButton.setEnabled(n > 0 || launcher);
     }
 
     private boolean hasLauncherAsset() {
@@ -448,11 +576,16 @@ public class MainActivity extends Activity {
             toast("Nothing selected.");
             return;
         }
+        final List<String> alsoDisable = new ArrayList<>();
+        if (launcher && !stock.isEmpty() && alsoDisableBox != null && alsoDisableBox.isChecked()) {
+            for (String l : launcherChoices) if (!l.equals(stock)) alsoDisable.add(l);
+        }
         StringBuilder msg = new StringBuilder();
         if (!selected.isEmpty()) msg.append("Disable ").append(selected.size()).append(" apps (reversible).\n");
         if (launcher) {
             msg.append("Install the clean launcher.\n");
             if (!stock.isEmpty()) msg.append("Then switch Home from ").append(stock).append(" to it.\n");
+            if (!alsoDisable.isEmpty()) msg.append("Also switch off: ").append(alsoDisable).append(".\n");
         }
         msg.append("\nKeep the TV on and the phone connected until it finishes. An undo record is saved on the TV first.");
         new AlertDialog.Builder(this)
@@ -462,7 +595,7 @@ public class MainActivity extends Activity {
             .setPositiveButton("Go", new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface d, int w) {
-                    runApply(selected, launcher, stock);
+                    runApply(selected, launcher, stock, alsoDisable);
                 }
             }).show();
     }
@@ -472,6 +605,10 @@ public class MainActivity extends Activity {
     private void showRun(String heading) {
         LinearLayout root = page();
         root.addView(title(heading));
+        progress = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
+        progress.setIndeterminate(true);
+        root.addView(progress, matchWrap());
+        root.addView(dim("Keep this screen open. If the connection drops, the app reconnects by itself."));
         logView = new TextView(this);
         logView.setTypeface(Typeface.MONOSPACE);
         logView.setTextSize(12);
@@ -518,7 +655,7 @@ public class MainActivity extends Activity {
         }
     };
 
-    private void runApply(final List<String> selected, final boolean launcher, final String stock) {
+    private void runApply(final List<String> selected, final boolean launcher, final String stock, final List<String> alsoDisable) {
         showRun("Working on " + info.title());
         final byte[] apk = launcher ? readAsset("launcher.apk") : null;
         final byte[] cfg = launcher && layoutBox != null && layoutBox.isChecked() && plan.best != null
@@ -550,6 +687,7 @@ public class MainActivity extends Activity {
                         Cleaner.LauncherOptions o = new Cleaner.LauncherOptions();
                         o.apk = apk;
                         o.stock = stock;
+                        o.alsoDisable = alsoDisable;
                         o.config = cfg;
                         o.inputKeyService = inputKey;
                         o.homeKeyService = homeKey;
@@ -568,8 +706,9 @@ public class MainActivity extends Activity {
                     failed = true;
                     logger.log("");
                     logger.log("Lost contact with the TV: " + e.getMessage());
-                    logger.log("The TV may be restarting. Reconnect and open Undo / restore to see what state it is in.");
-                    summary.append("Lost contact with the TV.");
+                    logger.log("The app already tried to reconnect. If the launcher hand-over was in progress, the TV puts the old launcher "
+                        + "back by itself within a few minutes. Connect again and open Undo / restore to see what state it is in.");
+                    summary.append("Lost contact with the TV: ").append(e.getMessage());
                 }
                 finish(failed, summary.toString());
             }
@@ -578,20 +717,11 @@ public class MainActivity extends Activity {
 
     private void runDiagnostics() {
         showRun("Diagnostics for " + info.title());
-        logger.log("Starting the launcher on the TV once and reading its log (about 15 seconds)...");
+        logger.log("Starting the launcher on the TV once and watching it (about 15 seconds). Each part appears as soon as it is done.");
         worker.execute(new Runnable() {
             @Override
             public void run() {
-                String report;
-                boolean failed = false;
-                try {
-                    report = tv.clean.phone.core.Diagnostics.collect(shell, info);
-                } catch (IOException e) {
-                    report = "Lost contact with the TV: " + e.getMessage();
-                    failed = true;
-                }
-                final String text = report;
-                logger.log(text);
+                final String text = tv.clean.phone.core.Diagnostics.collect(shell, info, logger);
                 ui.post(new Runnable() {
                     @Override
                     public void run() {
@@ -608,7 +738,7 @@ public class MainActivity extends Activity {
                         root.addView(copy, matchWrap());
                     }
                 });
-                finish(failed, failed ? "Could not finish." : "Report ready: copy it or take a photo.");
+                finish(false, "Report ready: copy it or take a photo.");
             }
         });
     }
@@ -618,6 +748,7 @@ public class MainActivity extends Activity {
             @Override
             public void run() {
                 LinearLayout root = (LinearLayout) logScroll.getChildAt(0);
+                if (progress != null) progress.setVisibility(View.GONE);
                 TextView t = body(summary);
                 t.setTextColor(failed ? DANGER : ACCENT);
                 root.addView(t);
@@ -653,7 +784,7 @@ public class MainActivity extends Activity {
                     ui.post(new Runnable() {
                         @Override
                         public void run() {
-                            conn = null;
+                            shell = null;
                             showConnect();
                             setStatus("The TV is no longer reachable (it may be restarting). Connect again.");
                         }
@@ -757,10 +888,13 @@ public class MainActivity extends Activity {
     }
 
     private void disconnect() {
-        final AdbConnection c = conn;
-        conn = null;
+        final AdbTvShell c = shell;
+        shell = null;
         info = null;
         runButton = null;
+        countView = null;
+        alsoDisableBox = null;
+        releaseConnectionHolds();
         worker.execute(new Runnable() {
             @Override
             public void run() {
@@ -833,6 +967,23 @@ public class MainActivity extends Activity {
         t.setTextSize(24);
         t.setTypeface(Typeface.DEFAULT_BOLD);
         t.setPadding(0, 0, 0, dp(4));
+        return t;
+    }
+
+    private TextView pill(String text, int color) {
+        TextView t = new TextView(this);
+        t.setText("\u25CF  " + text);
+        t.setTextColor(color);
+        t.setTextSize(13);
+        t.setPadding(dp(12), dp(4), dp(12), dp(4));
+        GradientDrawable g = new GradientDrawable();
+        g.setColor(CARD);
+        g.setCornerRadius(dp(16));
+        t.setBackground(g);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.topMargin = dp(4);
+        lp.bottomMargin = dp(8);
+        t.setLayoutParams(lp);
         return t;
     }
 

@@ -704,8 +704,8 @@ final class Config {
                 if (s == null) continue;
                 String name = s.optString("name", "").trim();
                 try {
-                    if (!name.isEmpty()) parsed.add(new RaceWeekend.Session(name, java.time.Instant.parse(s.optString("start", ""))));
-                } catch (java.time.format.DateTimeParseException ignored) {
+                    if (!name.isEmpty()) parsed.add(new RaceWeekend.Session(name, com.gathin.tvhome.time.Instant.parse(s.optString("start", ""))));
+                } catch (com.gathin.tvhome.time.DateTimeParseException ignored) {
                     // a session without a readable start time cannot be counted down
                 }
             }

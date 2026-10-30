@@ -2,8 +2,8 @@ package com.gathin.tvhome;
 
 import android.content.res.Resources;
 
-import java.time.Duration;
-import java.time.Instant;
+import com.gathin.tvhome.time.Duration;
+import com.gathin.tvhome.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;

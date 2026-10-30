@@ -98,6 +98,21 @@ public final class AdbKey {
     }
 
     /** struct RSAPublicKey { u32 len; u32 n0inv; u32 n[len]; u32 rr[len]; u32 exponent; } little endian. */
+    /** What the TV's "Allow USB debugging?" dialog shows: MD5 of the 524-byte public key, as AA:BB:CC:... */
+    public String fingerprint() {
+        try {
+            byte[] d = java.security.MessageDigest.getInstance("MD5").digest(publicKeyBlob());
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < d.length; i++) {
+                if (i > 0) sb.append(':');
+                sb.append(String.format("%02X", d[i] & 0xff));
+            }
+            return sb.toString();
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
     byte[] publicKeyBlob() {
         BigInteger two32 = BigInteger.ONE.shiftLeft(32);
         BigInteger n0 = modulus.mod(two32);

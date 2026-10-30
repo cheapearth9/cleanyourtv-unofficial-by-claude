@@ -10,7 +10,7 @@ import android.database.Cursor;
 import android.net.Uri;
 import android.os.Handler;
 
-import java.time.Duration;
+import com.gathin.tvhome.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
