@@ -3,6 +3,7 @@ package com.gathin.tvhome;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.net.Uri;
@@ -16,6 +17,8 @@ final class SystemSettings {
 
     static Intent intent(Context context, String action) {
         PackageManager pm = context.getPackageManager();
+        Intent tv = tvSettings(context, action);
+        if (tv != null) return tv;
         Intent standard = new Intent(action);
         ResolveInfo resolved = pm.resolveActivity(standard, PackageManager.MATCH_DEFAULT_ONLY);
         // Fire OS resolves the standard actions to a CTS compliance stub that opens nothing;
@@ -33,6 +36,27 @@ final class SystemSettings {
         } catch (PackageManager.NameNotFoundException e) {
             return standard;
         }
+    }
+
+    /**
+     * Boxes that are not certified Android TV (Amlogic and Rockchip "TV boxes") often carry the phone-style Settings app
+     * next to the TV one, and the standard actions open the phone-style one. Where the AOSP TV settings app is installed,
+     * it is used first: the same action limited to its package, or for the main Settings action its main screen.
+     * Returns null where the TV settings app is absent or has no such screen (the normal lookup then runs).
+     */
+    private static Intent tvSettings(Context context, String action) {
+        PackageManager pm = context.getPackageManager();
+        Intent scoped = new Intent(action).setPackage(AOSP_TV_SETTINGS.getPackageName());
+        if (pm.resolveActivity(scoped, PackageManager.MATCH_DEFAULT_ONLY) != null) return scoped;
+        if (Settings.ACTION_SETTINGS.equals(action)) {
+            try {
+                ActivityInfo info = pm.getActivityInfo(AOSP_TV_SETTINGS, 0);
+                if (info.exported && info.enabled) return new Intent().setComponent(AOSP_TV_SETTINGS);
+            } catch (PackageManager.NameNotFoundException e) {
+                // no TV settings app on this box
+            }
+        }
+        return null;
     }
 
     private static final ComponentName AOSP_TV_SETTINGS =

@@ -11,6 +11,7 @@ Android 7.0 / 7.1 (API 24 / 25) instead of Android 8+:
 | `WallpaperPlayer.java` | `Bitmap.Config.HARDWARE` (API 26): below Android 8 the software bitmap is used |
 | `WallpaperCaptions.java`, `GuardKeep.java`, `Order.java` | `Files.readAllLines` / `String.join` (API 26) replaced with `BufferedReader` / `TextUtils.join` |
 | `MainActivity.java` (`tvInputManager()`) | Boxes that are not Android TV certified hand out a `TvInputManager` whose service is null, so `getTvInputList()` threw `NullPointerException` in `onResume`. Every use now goes through a helper that treats such a manager as "no inputs" |
+| `SystemSettings.java`, `AndroidManifest.xml` | On boxes that carry both a phone-style Settings app and the AOSP TV one (non-certified Amlogic/Rockchip boxes), the standard Settings actions opened the phone-style app. The TV settings app (`com.android.tv.settings`) is now tried first, then the normal lookup |
 | `time/*.java` (new) and every file importing `java.time.*` | **`java.time` does not exist on Android 7** (it arrived in API 26): the launcher crashed at start with `NoClassDefFoundError: java.time.LocalDate`. A small stand-in in `com.gathin.tvhome.time` (only what the launcher calls) replaces it; `tools/jtest/TimeCompatTest.java` checks it against the real `java.time` (42,883 comparisons). Core-library desugaring is no longer used |
 
 I compiled every launcher source against the API 24 platform jar (with the JDK's `java.*` taken out of the picture, which
@@ -42,3 +43,8 @@ The phone app (`phone/`) is new code. Its debloat logic is a port of upstream `t
   permission check), with a fallback to the full dump when the TV has no grep; a check that times out keeps the app
   instead of guessing it is safe to disable;
 * Diagnostics: each part runs on its own and is shown as soon as it finishes, so one slow command cannot hide the crash log.
+* an Apps screen: every installed app with a search box, "Show system apps" and "Show removed system apps" switches, per-app
+  Uninstall (user apps), or Disable / Uninstall for this TV (system apps: `pm uninstall -k --user 0`, brought back with
+  `pm install-existing`), with the same protections as the clean-up (core software, launchers, Play-services family);
+* install an APK from the phone onto the TV: the file is streamed (no size limit from phone memory), checked to be a plain APK
+  (bundles such as .xapk are refused with an explanation), installed with `pm install -r -g`, and failures are explained.

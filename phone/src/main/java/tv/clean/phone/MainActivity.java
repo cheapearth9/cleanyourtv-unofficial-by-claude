@@ -3,6 +3,12 @@ package tv.clean.phone;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
+import android.content.Intent;
+import android.database.Cursor;
+import android.net.Uri;
+import android.provider.OpenableColumns;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
@@ -45,6 +51,8 @@ import java.util.concurrent.Executors;
 
 import tv.clean.phone.adb.AdbConnection;
 import tv.clean.phone.adb.AdbKey;
+import tv.clean.phone.core.ApkInstaller;
+import tv.clean.phone.core.AppManager;
 import tv.clean.phone.core.Cleaner;
 import tv.clean.phone.core.CleanException;
 import tv.clean.phone.core.Db;
@@ -90,6 +98,17 @@ public class MainActivity extends Activity {
     private LinearLayout details;
     private ProgressBar progress;
 
+    // apps screen
+    private static final int PICK_APK = 41;
+    private List<AppManager.App> apps = new ArrayList<>();
+    private boolean showSystemApps;
+    private boolean showRemovedApps;
+    private String appQuery = "";
+    private LinearLayout appList;
+    private TextView appCount;
+    private boolean inApps;
+    private Runnable afterRun;
+
     private TextView logView;
     private ScrollView logScroll;
     private Button runButton;
@@ -132,7 +151,9 @@ public class MainActivity extends Activity {
 
     @Override
     public void onBackPressed() {
-        if (shell != null && info != null && runButton != null) {
+        if (inApps) {
+            backToReview();
+        } else if (shell != null && info != null && runButton != null) {
             disconnect();
         } else {
             super.onBackPressed();
@@ -142,6 +163,7 @@ public class MainActivity extends Activity {
     // ------------------------------------------------------------------ screen 1: connect
 
     private void showConnect() {
+        inApps = false;
         LinearLayout root = page();
         root.addView(title("CleanYourTV"));
         root.addView(pill("Not connected", DIM));
@@ -383,6 +405,7 @@ public class MainActivity extends Activity {
     // ------------------------------------------------------------------ screen 2: review
 
     private void showReview() {
+        inApps = false;
         boxes.clear();
         LinearLayout root = page();
         root.addView(pill("Connected", ACCENT));
@@ -508,6 +531,14 @@ public class MainActivity extends Activity {
         updateCount();
 
         // ---- the rest
+        Button appsBtn = button("Apps: uninstall, or install an APK", false);
+        appsBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                loadApps();
+            }
+        });
+        root.addView(appsBtn, matchWrap());
         Button diag = button("Diagnostics (launcher crash log)", false);
         diag.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -603,6 +634,8 @@ public class MainActivity extends Activity {
     // ------------------------------------------------------------------ screen 3: run
 
     private void showRun(String heading) {
+        inApps = false;
+        afterRun = null;
         LinearLayout root = page();
         root.addView(title(heading));
         progress = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
@@ -756,7 +789,8 @@ public class MainActivity extends Activity {
                 back.setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
-                        backToReview();
+                        if (afterRun != null) afterRun.run();
+                        else backToReview();
                     }
                 });
                 root.addView(back, matchWrap());
@@ -790,6 +824,322 @@ public class MainActivity extends Activity {
                         }
                     });
                 }
+            }
+        });
+    }
+
+    // ------------------------------------------------------------------ apps
+
+    private interface Task {
+        /** Returns null on success, else a message for the person. */
+        String run() throws Exception;
+    }
+
+    private void loadApps() {
+        showRun("Apps on " + info.title());
+        logger.log("Reading the list of apps...");
+        worker.execute(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    apps = AppManager.list(shell);
+                    ui.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            showApps();
+                        }
+                    });
+                } catch (IOException e) {
+                    afterRun = new Runnable() {
+                        @Override
+                        public void run() {
+                            backToReview();
+                        }
+                    };
+                    finish(true, "Could not read the apps: " + e.getMessage());
+                }
+            }
+        });
+    }
+
+    private void showApps() {
+        inApps = true;
+        LinearLayout root = page();
+        root.addView(title("Apps"));
+        root.addView(dim(info.title() + ". Tap Uninstall to remove an app from the TV. System apps are only removed for this TV's user "
+            + "and can be brought back from the Removed list."));
+
+        Button install = button("Install an APK from this phone", true);
+        install.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent pick = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+                pick.addCategory(Intent.CATEGORY_OPENABLE);
+                pick.setType("*/*");
+                try {
+                    startActivityForResult(pick, PICK_APK);
+                } catch (RuntimeException e) {
+                    toast("No file picker found on this phone.");
+                }
+            }
+        });
+        root.addView(install, matchWrap());
+
+        final EditText search = new EditText(this);
+        search.setHint("Search by name");
+        search.setSingleLine(true);
+        search.setTextColor(TEXT);
+        search.setHintTextColor(DIM);
+        search.setText(appQuery);
+        search.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int a, int b, int c) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int a, int b, int c) {
+            }
+
+            @Override
+            public void afterTextChanged(Editable e) {
+                appQuery = e.toString().trim().toLowerCase(java.util.Locale.ROOT);
+                renderApps();
+            }
+        });
+        root.addView(search, matchWrap());
+
+        CheckBox sys = check("Show system apps", showSystemApps);
+        sys.setOnCheckedChangeListener(new android.widget.CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(android.widget.CompoundButton b, boolean on) {
+                showSystemApps = on;
+                renderApps();
+            }
+        });
+        root.addView(sys);
+        boolean anyRemoved = false;
+        for (AppManager.App a : apps) if (a.removed) anyRemoved = true;
+        if (anyRemoved) {
+            CheckBox rem = check("Show removed system apps (to bring back)", showRemovedApps);
+            rem.setOnCheckedChangeListener(new android.widget.CompoundButton.OnCheckedChangeListener() {
+                @Override
+                public void onCheckedChanged(android.widget.CompoundButton b, boolean on) {
+                    showRemovedApps = on;
+                    renderApps();
+                }
+            });
+            root.addView(rem);
+        }
+        appCount = dim("");
+        root.addView(appCount);
+        appList = new LinearLayout(this);
+        appList.setOrientation(LinearLayout.VERTICAL);
+        root.addView(appList);
+        Button back = button("Back", false);
+        back.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                backToReview();
+            }
+        });
+        root.addView(back, matchWrap());
+        setContentView(scroll(root));
+        renderApps();
+    }
+
+    private void renderApps() {
+        if (appList == null) return;
+        appList.removeAllViews();
+        int shown = 0;
+        int total = 0;
+        for (final AppManager.App a : apps) {
+            if (a.removed ? !showRemovedApps : (a.system && !showSystemApps)) continue;
+            if (!appQuery.isEmpty() && !a.pkg.toLowerCase(java.util.Locale.ROOT).contains(appQuery)) continue;
+            total++;
+            if (shown >= 300) continue;
+            shown++;
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setGravity(Gravity.CENTER_VERTICAL);
+            row.setPadding(0, dp(6), 0, dp(6));
+            LinearLayout text = new LinearLayout(this);
+            text.setOrientation(LinearLayout.VERTICAL);
+            TextView name = body(a.pkg);
+            name.setTextSize(14);
+            text.addView(name);
+            text.addView(dim(a.kind()));
+            row.addView(text, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+            Button act = button(a.removed ? "Bring back" : a.system || a.disabled ? "Options" : "Uninstall", false);
+            act.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    appAction(a);
+                }
+            });
+            row.addView(act, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+            appList.addView(row);
+        }
+        appCount.setText(total + (total == 1 ? " app" : " apps") + (total > shown ? " (showing the first " + shown + ": search to narrow)" : "")
+            + (showSystemApps ? "" : "  -  system apps hidden"));
+    }
+
+    private void appAction(final AppManager.App a) {
+        if (a.removed) {
+            appTask("Bringing back " + a.pkg, new Task() {
+                @Override
+                public String run() throws Exception {
+                    String err = AppManager.reinstall(shell, a);
+                    if (err == null) logger.log(a.pkg + " is back.");
+                    return err;
+                }
+            });
+            return;
+        }
+        Set<String> launchers = new java.util.LinkedHashSet<>(launcherChoices);
+        String homePkg = homeComponent == null ? null : Guards.pkgOf(homeComponent);
+        final String blocked = AppManager.blockedReason(a, launchers, homePkg);
+        if (!a.system && !a.disabled) {
+            if (blocked != null) {
+                new AlertDialog.Builder(this).setTitle("Cannot uninstall").setMessage(a.pkg + ": " + blocked + ".").setPositiveButton("OK", null).show();
+                return;
+            }
+            confirmUninstall(a, "Uninstall " + a.pkg + "?", "The app and its data are deleted from the TV.");
+            return;
+        }
+        // system or disabled: offer the reversible choices
+        final List<String> labels = new ArrayList<>();
+        if (a.disabled) labels.add("Enable");
+        if (!a.disabled && blocked == null) labels.add("Disable (reversible, recorded for Undo)");
+        if (blocked == null) labels.add("Uninstall for this TV (can be brought back)");
+        if (labels.isEmpty()) {
+            new AlertDialog.Builder(this).setTitle("Protected").setMessage(a.pkg + ": " + blocked + ".").setPositiveButton("OK", null).show();
+            return;
+        }
+        new AlertDialog.Builder(this).setTitle(a.pkg)
+            .setItems(labels.toArray(new String[0]), new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface d, int which) {
+                    String l = labels.get(which);
+                    if (l.startsWith("Enable")) {
+                        appTask("Enabling " + a.pkg, new Task() {
+                            @Override
+                            public String run() throws Exception {
+                                return AppManager.enable(shell, a);
+                            }
+                        });
+                    } else if (l.startsWith("Disable")) {
+                        appTask("Disabling " + a.pkg, new Task() {
+                            @Override
+                            public String run() throws Exception {
+                                TvInfo fresh = TvInfo.probe(shell);
+                                Cleaner.DebloatResult r = Cleaner.debloat(shell, fresh, java.util.Collections.singletonList(a.pkg), logger, sink);
+                                if (r.disabled.contains(a.pkg)) return null;
+                                return r.kept.isEmpty() ? "the TV refused to disable it" : r.kept.get(0);
+                            }
+                        });
+                    } else {
+                        confirmUninstall(a, "Uninstall " + a.pkg + " for this TV?",
+                            "It is removed for this TV's user only. The app stays in the system and can be brought back from the Removed list.");
+                    }
+                }
+            }).setNegativeButton("Cancel", null).show();
+    }
+
+    private void confirmUninstall(final AppManager.App a, String title, String message) {
+        new AlertDialog.Builder(this).setTitle(title).setMessage(message)
+            .setNegativeButton("Cancel", null)
+            .setPositiveButton("Uninstall", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface d, int w) {
+                    appTask("Uninstalling " + a.pkg, new Task() {
+                        @Override
+                        public String run() throws Exception {
+                            String err = AppManager.uninstall(shell, a);
+                            if (err == null) logger.log(a.pkg + " is gone.");
+                            return err;
+                        }
+                    });
+                }
+            }).show();
+    }
+
+    /** Runs one app task on the worker with the progress screen, then returns to the apps list. */
+    private void appTask(String heading, final Task task) {
+        showRun(heading);
+        afterRun = new Runnable() {
+            @Override
+            public void run() {
+                loadApps();
+            }
+        };
+        worker.execute(new Runnable() {
+            @Override
+            public void run() {
+                String err;
+                try {
+                    err = task.run();
+                } catch (CleanException e) {
+                    err = e.getMessage();
+                } catch (IOException e) {
+                    err = "Lost contact with the TV: " + e.getMessage();
+                } catch (Exception e) {
+                    err = String.valueOf(e);
+                }
+                finish(err != null, err != null ? "Failed: " + err : "Done.");
+            }
+        });
+    }
+
+    @Override
+    protected void onActivityResult(int request, int result, Intent data) {
+        super.onActivityResult(request, result, data);
+        if (request == PICK_APK && result == RESULT_OK && data != null && data.getData() != null && shell != null) {
+            installFromUri(data.getData());
+        }
+    }
+
+    private void installFromUri(final Uri uri) {
+        showRun("Install an APK");
+        afterRun = new Runnable() {
+            @Override
+            public void run() {
+                loadApps();
+            }
+        };
+        worker.execute(new Runnable() {
+            @Override
+            public void run() {
+                File copy = new File(getCacheDir(), "install.apk");
+                String err = null;
+                try {
+                    String name = "the app";
+                    try (Cursor c = getContentResolver().query(uri, null, null, null, null)) {
+                        if (c != null && c.moveToFirst()) {
+                            int i = c.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+                            if (i >= 0 && c.getString(i) != null) name = c.getString(i);
+                        }
+                    } catch (RuntimeException ignored) {
+                        // keep the generic name
+                    }
+                    logger.log("Reading " + name + " from this phone...");
+                    try (InputStream in = getContentResolver().openInputStream(uri); FileOutputStream out = new FileOutputStream(copy)) {
+                        if (in == null) throw new IOException("the file picker returned nothing");
+                        byte[] buf = new byte[65536];
+                        int n;
+                        while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+                    }
+                    ApkInstaller.install(shell, info, copy, name, logger);
+                } catch (CleanException e) {
+                    err = e.getMessage();
+                } catch (IOException e) {
+                    err = "Lost contact with the TV or could not read the file: " + e.getMessage();
+                } catch (RuntimeException e) {
+                    err = String.valueOf(e);
+                } finally {
+                    //noinspection ResultOfMethodCallIgnored
+                    copy.delete();
+                }
+                finish(err != null, err != null ? "Failed: " + err : "Installed.");
             }
         });
     }

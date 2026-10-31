@@ -48,9 +48,12 @@ final class FakeTv implements TvShell {
     String otherHome;            // another enabled launcher: Android then shows the chooser on a Home press
     boolean noGrep;              // a shell without grep
     boolean failInputCheck;      // the TV stops answering the batched dumpsys package calls
+    String installResult;
     boolean watchdogArmed;
     int armCount, disarmCount;
     boolean crashLogged;
+    final Set<String> systemPkgs = new LinkedHashSet<>();
+    final Set<String> removedPkgs = new LinkedHashSet<>();
 
     @Override
     public synchronized String run(String c, int timeoutMs) throws IOException {
@@ -85,6 +88,24 @@ final class FakeTv implements TvShell {
             if (b != null) out.append(new String(b, "UTF-8"));
         } else if (c.startsWith("rm -f " + Cleaner.RECORD_PATH)) {
             files.remove(Cleaner.RECORD_PATH);
+        } else if (c.startsWith("echo @@ALL")) {
+            out.append("@@ALL\n");
+            for (String p : installed) out.append("package:").append(systemPkgs.contains(p) ? "/system/app/" + p + "/base.apk" : "/data/app/" + p + "-1/base.apk").append('=').append(p).append('\n');
+            out.append("@@SYS\n");
+            for (String p : installed) if (systemPkgs.contains(p)) out.append("package:").append(p).append('\n');
+            out.append("@@DIS\n");
+            for (String p : disabled) out.append("package:").append(p).append('\n');
+            out.append("@@UNI\n");
+            for (String p : installed) out.append("package:").append(p).append('\n');
+            for (String p : removedPkgs) out.append("package:").append(p).append('\n');
+        } else if (c.startsWith("pm install-existing")) {
+            String p = c.replaceAll(" 2>&1.*", "").replaceAll(".* ", "");
+            if (removedPkgs.remove(p)) { installed.add(p); out.append("Package ").append(p).append(" installed for user: 0\n"); }
+            else out.append("Error: package not found\n");
+        } else if (c.contains("cyt-install.apk")) {
+            if (c.startsWith("rm -f")) { files.remove("/data/local/tmp/cyt-install.apk"); }
+            else if (!files.containsKey("/data/local/tmp/cyt-install.apk")) out.append("Failure [INSTALL_FAILED_INVALID_URI]\n");
+            else out.append(installResult != null ? installResult : "Success\n");
         } else if (c.contains("pm install -r")) {
             if (c.contains("pm uninstall")) ownInstalled = false;
             if (!files.containsKey("/data/local/tmp/tvhome.apk")) out.append("Failure [INSTALL_FAILED_INVALID_URI]");
@@ -158,7 +179,11 @@ final class FakeTv implements TvShell {
             }
             if (c.contains("pm disable-user") && stock != null && disabled.contains(stock)) { ownIsHome = ownInstalled; }
         } else if (c.startsWith("pm uninstall")) {
-            ownInstalled = false; installed.remove("com.gathin.tvhome"); ownIsHome = false; out.append("Success\n");
+            String p = c.replaceAll(" 2>&1.*", "").replaceAll(".* ", "");
+            if (c.startsWith("pm uninstall -k") && installed.contains(p)) removedPkgs.add(p);
+            installed.remove(p);
+            if (p.equals("com.gathin.tvhome")) { ownInstalled = false; ownIsHome = false; }
+            out.append(installed.contains(p) || (!c.startsWith("pm uninstall -k") && false) ? "Failure\n" : "Success\n");
         } else if (c.startsWith("mkdir -p") || c.startsWith("cmd appops")) {
             // ok
         } else if (c.startsWith("cmd package set-home-activity")) {

@@ -252,6 +252,68 @@ public final class CoreSelfTest {
         String partial = Diagnostics.collect(flaky, TvInfo.probe(dg), null);
         check(partial.contains("this part failed: The TV said nothing") && partial.contains("== Start attempt and crash log ==") && partial.contains("== Device =="), "diagnostics: a timeout in one part leaves the other parts intact");
 
+        // ---- the Apps screen: list, protect, uninstall, bring back
+        FakeTv ap = fresh(25);
+        ap.installed.addAll(Arrays.asList("com.netflix.ninja", "com.vendor.bloat", "com.google.android.gms", "com.gathin.tvhome", "com.vendor.home"));
+        ap.systemPkgs.addAll(Arrays.asList(ap.stock, "com.android.tv.settings", "com.vendor.bloat", "com.google.android.gms", "com.vendor.home"));
+        ap.disabled.add("com.vendor.home");
+        List<AppManager.App> apps = AppManager.list(ap);
+        AppManager.App netflix = null, bloat = null, gms = null, settings = null, home = null;
+        for (AppManager.App a : apps) {
+            if (a.pkg.equals("com.netflix.ninja")) netflix = a;
+            if (a.pkg.equals("com.vendor.bloat")) bloat = a;
+            if (a.pkg.equals("com.google.android.gms")) gms = a;
+            if (a.pkg.equals("com.android.tv.settings")) settings = a;
+            if (a.pkg.equals("com.vendor.home")) home = a;
+        }
+        check(netflix != null && !netflix.system && bloat != null && bloat.system && home != null && home.disabled && home.system, "apps list: user vs system vs disabled (" + apps.size() + " apps)");
+        java.util.Set<String> launcherSet = new java.util.LinkedHashSet<>(Arrays.asList(ap.stock));
+        check(AppManager.blockedReason(netflix, launcherSet, ap.stock) == null && AppManager.blockedReason(bloat, launcherSet, ap.stock) == null, "an ordinary user app and a vendor system app may be removed");
+        check(AppManager.blockedReason(settings, launcherSet, ap.stock) != null && AppManager.blockedReason(gms, launcherSet, ap.stock) != null, "core software and the Play-services family are protected");
+        AppManager.App stockApp = null;
+        for (AppManager.App a : apps) if (a.pkg.equals(ap.stock)) stockApp = a;
+        check(AppManager.blockedReason(stockApp, launcherSet, ap.stock).contains("launcher"), "the Home launcher cannot be uninstalled from the list");
+        check(AppManager.blockedReason(apps.stream().filter(a -> a.pkg.equals("com.gathin.tvhome")).findFirst().get(), launcherSet, null).contains("clean launcher"), "our own launcher points to Undo / restore");
+        check(AppManager.uninstall(ap, netflix) == null && !ap.installed.contains("com.netflix.ninja") && ap.removedPkgs.isEmpty(), "user app: plain pm uninstall");
+        check(AppManager.uninstall(ap, bloat) == null && ap.removedPkgs.contains("com.vendor.bloat") && ap.history.stream().anyMatch(c -> c.startsWith("pm uninstall -k --user 0 com.vendor.bloat")), "system app: removed for this user only, so it can come back");
+        List<AppManager.App> after = AppManager.list(ap);
+        AppManager.App gone = after.stream().filter(a -> a.pkg.equals("com.vendor.bloat")).findFirst().get();
+        check(gone.removed && gone.kind().startsWith("Removed"), "a removed system app is listed as removed");
+        check(AppManager.reinstall(ap, gone) == null && ap.installed.contains("com.vendor.bloat"), "removed system app is brought back");
+        check(AppManager.uninstall(ap, new AppManager.App("bad; reboot") ) != null && ap.history.stream().noneMatch(c -> c.contains("reboot")), "an invalid package name never reaches the shell");
+        check(AppManager.enable(ap, home) == null && ap.enabled("com.vendor.home"), "a disabled app is enabled again");
+
+        // ---- install an APK from the phone
+        java.io.File apkFile = java.io.File.createTempFile("good", ".apk");
+        try (java.util.zip.ZipOutputStream zo = new java.util.zip.ZipOutputStream(new java.io.FileOutputStream(apkFile))) {
+            zo.putNextEntry(new java.util.zip.ZipEntry("AndroidManifest.xml"));
+            zo.write(new byte[200]);
+            zo.closeEntry();
+        }
+        java.io.File bundle = java.io.File.createTempFile("bundle", ".xapk");
+        try (java.util.zip.ZipOutputStream zo = new java.util.zip.ZipOutputStream(new java.io.FileOutputStream(bundle))) {
+            zo.putNextEntry(new java.util.zip.ZipEntry("manifest.json"));
+            zo.write(new byte[10]);
+            zo.closeEntry();
+        }
+        List<String> inst = new ArrayList<>();
+        ApkInstaller.install(ap, TvInfo.probe(ap), apkFile, "good.apk", inst::add);
+        check(inst.stream().anyMatch(l -> l.equals("Installed.")) && inst.stream().anyMatch(l -> l.contains("100%")) && ap.history.stream().anyMatch(c -> c.startsWith("pm install -r -g /data/local/tmp/cyt-install.apk")), "APK install: sent with progress, installed");
+        check(!ap.files.containsKey("/data/local/tmp/cyt-install.apk"), "APK install: temporary file removed from the TV");
+        try {
+            ApkInstaller.install(ap, TvInfo.probe(ap), bundle, "game.xapk", inst::add);
+            check(false, "a bundle is refused");
+        } catch (CleanException e) {
+            check(e.getMessage().contains("not a plain APK"), "an .xapk bundle is refused with an explanation");
+        }
+        ap.installResult = "Failure [INSTALL_FAILED_UPDATE_INCOMPATIBLE: Package x signatures do not match]\n";
+        try {
+            ApkInstaller.install(ap, TvInfo.probe(ap), apkFile, "good.apk", inst::add);
+            check(false, "incompatible signature reported");
+        } catch (CleanException e) {
+            check(e.getMessage().contains("signed by someone else"), "signature clash: tells the person to uninstall the old copy first");
+        }
+
         // ---- the safety timer script, run for real on this machine's /bin/sh with fake pm/cmd/am
         java.io.File dir = java.nio.file.Files.createTempDirectory("wd").toFile();
         java.io.File bin = new java.io.File(dir, "bin");

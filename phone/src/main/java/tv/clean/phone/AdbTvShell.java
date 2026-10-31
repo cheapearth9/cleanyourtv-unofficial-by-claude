@@ -80,6 +80,34 @@ public final class AdbTvShell implements TvShell, Closeable {
         }
     }
 
+    @Override
+    public synchronized void pushFile(java.io.File local, String remotePath, int mode, final Progress progress) throws IOException {
+        AdbConnection.Progress adapter = progress == null ? null : new AdbConnection.Progress() {
+            @Override
+            public void onProgress(long sent, long total) {
+                progress.onProgress(sent, total);
+            }
+        };
+        AdbConnection c = live();
+        try {
+            streamTo(c, local, remotePath, mode, adapter);
+        } catch (SocketTimeoutException e) {
+            drop();
+            throw e;
+        } catch (IOException e) {
+            if (e.getMessage() != null && e.getMessage().startsWith("The TV refused the file")) throw e;
+            drop();
+            note("Connection to the TV dropped (" + e.getMessage() + "); reconnecting and sending the file again...");
+            streamTo(reconnect(), local, remotePath, mode, adapter);
+        }
+    }
+
+    private static void streamTo(AdbConnection c, java.io.File local, String remotePath, int mode, AdbConnection.Progress p) throws IOException {
+        try (java.io.FileInputStream in = new java.io.FileInputStream(local)) {
+            c.pushStream(in, local.length(), remotePath, mode, p);
+        }
+    }
+
     private AdbConnection live() throws IOException {
         if (conn == null || conn.isBroken()) {
             note("Reconnecting to the TV...");
