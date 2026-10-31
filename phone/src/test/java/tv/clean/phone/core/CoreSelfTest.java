@@ -314,6 +314,47 @@ public final class CoreSelfTest {
             check(e.getMessage().contains("signed by someone else"), "signature clash: tells the person to uninstall the old copy first");
         }
 
+        // ---- hide / show the on-screen bars
+        FakeTv bars = fresh(25);
+        TvInfo bi = TvInfo.probe(bars);
+        Record[] brec = new Record[1];
+        check(Cleaner.applyBars(bars, bi, true, log, r -> brec[0] = r) && SystemBars.HIDE_VALUE.equals(bars.policyControl), "bars: hidden with the immersive policy");
+        check(brec[0] != null && "null".equals(brec[0].barsBefore) && bars.files.get(Cleaner.RECORD_PATH) != null, "bars: 'it was unset' is in the undo record");
+        check(!Cleaner.applyBars(bars, bi, true, log, null), "bars: hiding twice changes nothing");
+        check(Cleaner.applyBars(bars, bi, false, log, r -> brec[0] = r) && bars.policyControl == null && !bars.files.containsKey(Cleaner.RECORD_PATH), "bars: shown again = unset as before, empty record removed");
+
+        FakeTv bars2 = fresh(25);
+        bars2.policyControl = "immersive.status=*";
+        Cleaner.applyBars(bars2, TvInfo.probe(bars2), true, log, null);
+        check(Record.parse(new String(bars2.files.get(Cleaner.RECORD_PATH), "UTF-8")).barsBefore.equals("immersive.status=*"), "bars: the earlier setting is saved in the record");
+        Cleaner.applyBars(bars2, TvInfo.probe(bars2), false, log, null);
+        check("immersive.status=*".equals(bars2.policyControl), "bars: shown again = the earlier setting is back, whatever it was");
+
+        FakeTv bars3 = fresh(25);
+        Cleaner.applyBars(bars3, TvInfo.probe(bars3), true, log, null);
+        bars3.policyControl = "immersive.navigation=*";      // something else changed it meanwhile
+        check(!Cleaner.applyBars(bars3, TvInfo.probe(bars3), false, log, null) && "immersive.navigation=*".equals(bars3.policyControl), "bars: a value somebody else set is left alone");
+
+        FakeTv bars4 = fresh(25);
+        bars4.policyControl = "x; reboot";
+        try {
+            Cleaner.applyBars(bars4, TvInfo.probe(bars4), true, log, null);
+            check(false, "unusual value refused");
+        } catch (CleanException e) {
+            check(bars4.history.stream().noneMatch(c -> c.contains("reboot") && c.startsWith("settings put")), "bars: an unusual existing value is not overwritten or echoed into a shell");
+        }
+        try {
+            Cleaner.applyBars(fresh(34), TvInfo.probe(fresh(34)), true, log, null);
+            check(false, "Android 14 refused");
+        } catch (CleanException e) {
+            check(e.getMessage().contains("ignores"), "bars: Android 11+ says it cannot");
+        }
+        check(Record.parse("cleanyourtv-record 1\nbars_before=a; reboot\n").barsBefore == null && Record.parse("cleanyourtv-record 1\nbars_before=immersive.full=*\n").barsBefore.equals("immersive.full=*"), "bars: a tampered record value is dropped");
+        FakeTv bars5 = fresh(25);
+        Cleaner.applyBars(bars5, TvInfo.probe(bars5), true, log, null);
+        Cleaner.restore(bars5, TvInfo.probe(bars5), Cleaner.readTvRecord(bars5), false, log);
+        check(bars5.policyControl == null, "restore also brings the bars back");
+
         // ---- the safety timer script, run for real on this machine's /bin/sh with fake pm/cmd/am
         java.io.File dir = java.nio.file.Files.createTempDirectory("wd").toFile();
         java.io.File bin = new java.io.File(dir, "bin");

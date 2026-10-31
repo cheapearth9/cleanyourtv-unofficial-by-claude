@@ -48,3 +48,8 @@ The phone app (`phone/`) is new code. Its debloat logic is a port of upstream `t
   `pm install-existing`), with the same protections as the clean-up (core software, launchers, Play-services family);
 * install an APK from the phone onto the TV: the file is streamed (no size limit from phone memory), checked to be a plain APK
   (bundles such as .xapk are refused with an explanation), installed with `pm install -r -g`, and failures are explained.
+* a "Hide the on-screen buttons and the notification bar" switch for boxes that show a Home/Back button bar and a status bar
+  (`SystemBars`): it sets `settings put global policy_control immersive.full=*:immersive.preconfirms=*`, which survives restarts.
+  The switch starts in whatever state the TV is in; changing it and pressing Make it clean applies it, and turning it off
+  restores the value the setting had before (kept in the undo record, which Undo / restore also honours). Android 11+ ignores
+  the setting, so the switch is not shown there.

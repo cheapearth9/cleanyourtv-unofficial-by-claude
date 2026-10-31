@@ -49,6 +49,7 @@ final class FakeTv implements TvShell {
     boolean noGrep;              // a shell without grep
     boolean failInputCheck;      // the TV stops answering the batched dumpsys package calls
     String installResult;
+    String policyControl;        // settings global policy_control (null = unset)
     boolean watchdogArmed;
     int armCount, disarmCount;
     boolean crashLogged;
@@ -121,6 +122,14 @@ final class FakeTv implements TvShell {
             if (ownInstalled) out.append("    versionName=1.0\n    targetSdk=33\n");
         } else if (c.startsWith("logcat -d -v brief '*:W'")) {
             if (crashLogged) out.append("E/AndroidRuntime( 3105): Process: com.gathin.tvhome, PID: 3105\n");
+        } else if (c.startsWith("settings get global policy_control")) {
+            out.append(policyControl == null ? "null" : policyControl).append('\n');
+        } else if (c.startsWith("settings put global policy_control")) {
+            Matcher m = Pattern.compile("policy_control '?([^' ]*)'?").matcher(c);
+            if (m.find()) policyControl = m.group(1).equals("null") ? null : m.group(1);
+        } else if (c.startsWith("settings delete global policy_control")) {
+            policyControl = null;
+            out.append("Deleted 1 rows\n");
         } else if (c.startsWith("logcat -c")) {
             crashLogged = false;
         } else if (c.startsWith("sleep 3; logcat -d")) {

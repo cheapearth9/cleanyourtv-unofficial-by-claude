@@ -332,6 +332,24 @@ public final class Cleaner {
         return new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US).format(new Date());
     }
 
+    // ------------------------------------------------------------------ screen bars
+
+    /** Hides or shows the on-screen button bar and the notification bar, keeping the undo record in step. */
+    public static boolean applyBars(TvShell sh, TvInfo tv, boolean hide, Log log, RecordSink sink) throws IOException, CleanException {
+        Record rec = readTvRecord(sh);
+        if (rec == null) rec = new Record();
+        if (rec.savedAt.isEmpty()) rec.savedAt = now();
+        boolean changed = SystemBars.apply(sh, tv, hide, rec, log);
+        if (changed) {
+            if (rec.isEmpty()) {
+                sh.run("rm -f " + RECORD_PATH, 15000);
+            } else {
+                saveRecord(sh, rec, sink);
+            }
+        }
+        return changed;
+    }
+
     // ------------------------------------------------------------------ launcher
 
     public static final class LauncherOptions {
@@ -589,6 +607,13 @@ public final class Cleaner {
         }
         sh.run("rm -f " + RECORD_PATH, 15000);
         if (!rec.stock.isEmpty()) sh.run("am start -a " + HOME_ACTION + " -c " + HOME_CAT + " 2>&1; true", 30000);
+        if (rec.barsBefore != null) {
+            try {
+                SystemBars.apply(sh, tv, false, rec, log);
+            } catch (CleanException e) {
+                log.log("Could not bring the screen bars back: " + e.getMessage());
+            }
+        }
         return res;
     }
 

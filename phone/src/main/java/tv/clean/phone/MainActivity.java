@@ -60,6 +60,7 @@ import tv.clean.phone.core.Guards;
 import tv.clean.phone.core.Log;
 import tv.clean.phone.core.Planner;
 import tv.clean.phone.core.Record;
+import tv.clean.phone.core.SystemBars;
 import tv.clean.phone.core.ResolverTable;
 import tv.clean.phone.core.TvInfo;
 
@@ -95,6 +96,9 @@ public class MainActivity extends Activity {
     private Spinner stockSpinner;
     private CheckBox alsoDisableBox;
     private TextView countView;
+    private CheckBox barsBox;
+    private boolean barsHiddenNow;
+    private boolean barsSupported;
     private LinearLayout details;
     private ProgressBar progress;
 
@@ -296,6 +300,7 @@ public class MainActivity extends Activity {
                     plan = Planner.plan(db, info);
                     homeComponent = Cleaner.homeComponent(shell, info);
                     loadLauncherChoices();
+                    readBars();
                     ui.post(new Runnable() {
                         @Override
                         public void run() {
@@ -367,6 +372,18 @@ public class MainActivity extends Activity {
         }
     }
 
+    /** Whether the TV's on-screen buttons and notification bar are hidden by this app right now. */
+    private void readBars() {
+        barsSupported = SystemBars.supported(info);
+        barsHiddenNow = false;
+        if (!barsSupported) return;
+        try {
+            barsHiddenNow = SystemBars.isHidden(SystemBars.current(shell));
+        } catch (IOException ignored) {
+            // shown as "not hidden"; applying it later reports the real problem
+        }
+    }
+
     private void loadLauncherChoices() {
         launcherChoices.clear();
         try {
@@ -434,6 +451,21 @@ public class MainActivity extends Activity {
         }
         root.addView(head);
 
+        barsBox = null;
+        if (barsSupported) {
+            LinearLayout bc = card();
+            barsBox = check("Hide the on-screen buttons and the notification bar", barsHiddenNow);
+            barsBox.setOnCheckedChangeListener(new android.widget.CompoundButton.OnCheckedChangeListener() {
+                @Override
+                public void onCheckedChanged(android.widget.CompoundButton b, boolean on) {
+                    updateCount();
+                }
+            });
+            bc.addView(barsBox);
+            bc.addView(dim("For TVs that show a Home / Back button bar and a status bar on screen. Hidden after every restart too. "
+                + "Your remote's Home and Back keys keep working. Untick it and press Make it clean to bring the bars back as they were."));
+            root.addView(bc);
+        }
         runButton = button("Make it clean", true);
         runButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -571,10 +603,12 @@ public class MainActivity extends Activity {
         int n = 0;
         for (CheckBox cb : boxes.values()) if (cb.isChecked()) n++;
         boolean launcher = installLauncherBox != null && installLauncherBox.isChecked();
+        boolean barsChange = barsBox != null && barsBox.isChecked() != barsHiddenNow;
         String t = n + (n == 1 ? " thing" : " things") + " to switch off";
         if (launcher) t += " + a clean launcher";
+        if (barsChange) t += barsBox.isChecked() ? " + hide the bars" : " + bring the bars back";
         countView.setText(t);
-        if (runButton != null) runButton.setEnabled(n > 0 || launcher);
+        if (runButton != null) runButton.setEnabled(n > 0 || launcher || barsChange);
     }
 
     private boolean hasLauncherAsset() {
@@ -603,7 +637,9 @@ public class MainActivity extends Activity {
         final boolean launcher = installLauncherBox != null && installLauncherBox.isChecked();
         final String stock = launcher && stockSpinner != null && stockSpinner.getSelectedItemPosition() > 0
             ? launcherChoices.get(stockSpinner.getSelectedItemPosition() - 1) : "";
-        if (selected.isEmpty() && !launcher) {
+        final boolean barsChange = barsBox != null && barsBox.isChecked() != barsHiddenNow;
+        final boolean hideBars = barsBox != null && barsBox.isChecked();
+        if (selected.isEmpty() && !launcher && !barsChange) {
             toast("Nothing selected.");
             return;
         }
@@ -612,6 +648,7 @@ public class MainActivity extends Activity {
             for (String l : launcherChoices) if (!l.equals(stock)) alsoDisable.add(l);
         }
         StringBuilder msg = new StringBuilder();
+        if (barsChange) msg.append(hideBars ? "Hide the on-screen buttons and the notification bar.\n" : "Bring the on-screen buttons and the notification bar back.\n");
         if (!selected.isEmpty()) msg.append("Disable ").append(selected.size()).append(" apps (reversible).\n");
         if (launcher) {
             msg.append("Install the clean launcher.\n");
@@ -626,7 +663,7 @@ public class MainActivity extends Activity {
             .setPositiveButton("Go", new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface d, int w) {
-                    runApply(selected, launcher, stock, alsoDisable);
+                    runApply(selected, launcher, stock, alsoDisable, barsChange, hideBars);
                 }
             }).show();
     }
@@ -688,7 +725,8 @@ public class MainActivity extends Activity {
         }
     };
 
-    private void runApply(final List<String> selected, final boolean launcher, final String stock, final List<String> alsoDisable) {
+    private void runApply(final List<String> selected, final boolean launcher, final String stock, final List<String> alsoDisable,
+                          final boolean barsChange, final boolean hideBars) {
         showRun("Working on " + info.title());
         final byte[] apk = launcher ? readAsset("launcher.apk") : null;
         final byte[] cfg = launcher && layoutBox != null && layoutBox.isChecked() && plan.best != null
@@ -701,6 +739,17 @@ public class MainActivity extends Activity {
                 StringBuilder summary = new StringBuilder();
                 boolean failed = false;
                 try {
+                    if (barsChange) {
+                        logger.log("== Screen bars ==");
+                        try {
+                            Cleaner.applyBars(shell, info, hideBars, logger, sink);
+                            barsHiddenNow = hideBars;
+                            summary.append(hideBars ? "Hid the on-screen buttons and the notification bar.\n" : "Brought the on-screen buttons and the notification bar back.\n");
+                        } catch (CleanException e) {
+                            logger.log("Could not change the bars: " + e.getMessage());
+                            summary.append("Bars unchanged: ").append(e.getMessage()).append('\n');
+                        }
+                    }
                     if (!selected.isEmpty()) {
                         logger.log("== Clean-up ==");
                         Cleaner.DebloatResult r = Cleaner.debloat(shell, info, selected, logger, sink);
@@ -808,6 +857,7 @@ public class MainActivity extends Activity {
                     plan = Planner.plan(db, info);
                     homeComponent = Cleaner.homeComponent(shell, info);
                     loadLauncherChoices();
+                    readBars();
                     ui.post(new Runnable() {
                         @Override
                         public void run() {
