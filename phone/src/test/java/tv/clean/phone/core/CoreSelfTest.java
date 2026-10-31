@@ -296,6 +296,15 @@ public final class CoreSelfTest {
         upd.path = "/data/app/com.android.vending-1/base.apk";
         check(upd.updatedSystem() && upd.kind().contains("updated") && !vend.updatedSystem(), "an updated system app is recognised by its APK path");
 
+        // ---- firmware whose pm has no install-existing: bring a removed system app back from its built-in APK
+        FakeTv noie = fresh(25);
+        noie.noInstallExisting = true;
+        noie.installed.add("com.android.vending");
+        noie.systemPkgs.add("com.android.vending");
+        AppManager.uninstall(noie, AppManager.list(noie).stream().filter(a -> a.pkg.equals("com.android.vending")).findFirst().get());
+        AppManager.App gone2 = AppManager.list(noie).stream().filter(a -> a.pkg.equals("com.android.vending")).findFirst().get();
+        check(gone2.removed && AppManager.reinstall(noie, gone2) == null && noie.installed.contains("com.android.vending") && noie.removedPkgs.isEmpty(), "no install-existing: removed app comes back from its built-in APK");
+
         // ---- install an APK from the phone
         java.io.File apkFile = java.io.File.createTempFile("good", ".apk");
         try (java.util.zip.ZipOutputStream zo = new java.util.zip.ZipOutputStream(new java.io.FileOutputStream(apkFile))) {

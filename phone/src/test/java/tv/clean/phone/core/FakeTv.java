@@ -48,6 +48,7 @@ final class FakeTv implements TvShell {
     String otherHome;            // another enabled launcher: Android then shows the chooser on a Home press
     boolean noGrep;              // a shell without grep
     boolean failInputCheck;      // the TV stops answering the batched dumpsys package calls
+    boolean noInstallExisting;   // firmware whose pm has no install-existing
     String installResult;
     String policyControl;        // settings global policy_control (null = unset)
     boolean watchdogArmed;
@@ -99,6 +100,16 @@ final class FakeTv implements TvShell {
             out.append("@@UNI\n");
             for (String p : installed) out.append("package:").append(p).append('\n');
             for (String p : removedPkgs) out.append("package:").append(p).append('\n');
+        } else if (c.startsWith("pm install-existing") && noInstallExisting) {
+            out.append("Error: unknown command 'install-existing'\n");
+        } else if (c.startsWith("dumpsys package ") && c.contains("codePath=")) {
+            String p = c.replaceAll("^dumpsys package ", "").replaceAll(" .*", "");
+            if (removedPkgs.contains(p)) out.append("    codePath=/system/priv-app/").append(p).append('\n');
+        } else if (c.startsWith("ls /system/priv-app/")) {
+            out.append("oat\nbase.apk\n");
+        } else if (c.startsWith("pm install -r -d /system/priv-app/")) {
+            String p = c.replaceAll("^pm install -r -d /system/priv-app/", "").replaceAll("/.*", "");
+            if (removedPkgs.remove(p)) { installed.add(p); out.append("Success\n"); } else out.append("Failure [INSTALL_FAILED_INVALID_URI]\n");
         } else if (c.startsWith("pm install-existing")) {
             String p = c.replaceAll(" 2>&1.*", "").replaceAll(".* ", "");
             if (removedPkgs.remove(p)) { installed.add(p); out.append("Package ").append(p).append(" installed for user: 0\n"); }
