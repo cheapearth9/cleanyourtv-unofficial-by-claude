@@ -10,6 +10,7 @@ Android 7.0 / 7.1 (API 24 / 25) instead of Android 8+:
 | `MainActivity.java` | `PackageManager.getChangedPackages` (API 26): below Android 8 the tiles are simply rebuilt each time |
 | `WallpaperPlayer.java` | `Bitmap.Config.HARDWARE` (API 26): below Android 8 the software bitmap is used |
 | `WallpaperCaptions.java`, `GuardKeep.java`, `Order.java` | `Files.readAllLines` / `String.join` (API 26) replaced with `BufferedReader` / `TextUtils.join` |
+| `MainActivity.java` (`tvInputManager()`) | Boxes that are not Android TV certified hand out a `TvInputManager` whose service is null, so `getTvInputList()` threw `NullPointerException` in `onResume`. Every use now goes through a helper that treats such a manager as "no inputs" |
 | `time/*.java` (new) and every file importing `java.time.*` | **`java.time` does not exist on Android 7** (it arrived in API 26): the launcher crashed at start with `NoClassDefFoundError: java.time.LocalDate`. A small stand-in in `com.gathin.tvhome.time` (only what the launcher calls) replaces it; `tools/jtest/TimeCompatTest.java` checks it against the real `java.time` (42,883 comparisons). Core-library desugaring is no longer used |
 
 I compiled every launcher source against the API 24 platform jar (with the JDK's `java.*` taken out of the picture, which

@@ -357,6 +357,23 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         }
     };
     /** Shows the Inputs pill once the TV registers an input: at boot HDMI inputs can appear after Home is shown. */
+    /** Whether this box's TvInputManager works. Some boxes (not Android TV certified) hand out a TvInputManager whose service is null; every call on it then throws NullPointerException. */
+    private Boolean timUsable;
+
+    private TvInputManager tvInputManager() {
+        TvInputManager tim = (TvInputManager) getSystemService(TV_INPUT_SERVICE);
+        if (tim == null) return null;
+        if (timUsable == null) {
+            try {
+                tim.getTvInputList();
+                timUsable = true;
+            } catch (RuntimeException e) {
+                timUsable = false;
+            }
+        }
+        return timUsable ? tim : null;
+    }
+
     private final TvInputManager.TvInputCallback inputCallback = new TvInputManager.TvInputCallback() {
         @Override
         public void onInputAdded(String inputId) {
@@ -888,7 +905,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         }
 
         ConnectivityManager cm = getSystemService(ConnectivityManager.class);
-        TvInputManager tim = (TvInputManager) getSystemService(TV_INPUT_SERVICE);
+        TvInputManager tim = tvInputManager();
         if (tim != null) tim.registerCallback(inputCallback, handler);
         if (cm != null) {
             cm.registerDefaultNetworkCallback(networkCallback);
@@ -1285,7 +1302,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         unregisterReceiver(packageReceiver);
         wallpaperPlayer.close();
         ConnectivityManager cm = getSystemService(ConnectivityManager.class);
-        TvInputManager tim = (TvInputManager) getSystemService(TV_INPUT_SERVICE);
+        TvInputManager tim = tvInputManager();
         if (tim != null) tim.unregisterCallback(inputCallback);
         if (cm != null) {
             cm.unregisterNetworkCallback(networkCallback);
@@ -3014,7 +3031,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         }
         boolean any = liveTvIntent() != null || !sourcePanelService.isEmpty()
                 || (coocaaSources && !CoocaaSources.list(this).isEmpty());
-        TvInputManager tim = (TvInputManager) getSystemService(TV_INPUT_SERVICE);
+        TvInputManager tim = tvInputManager();
         if (!any && tim != null) {
             for (TvInputInfo info : tim.getTvInputList()) {
                 // Inputs hidden in Settings > Inputs are left out of the menu, so they don't count here either.
@@ -3116,7 +3133,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         // A CEC device is a child input of its HDMI port; the vendor source number belongs to the port
         // (MiTV-MFFU0). Only that lookup uses the parent: the generic path below still opens the child.
         String sourceId = inputId;
-        TvInputManager tim = (TvInputManager) getSystemService(TV_INPUT_SERVICE);
+        TvInputManager tim = tvInputManager();
         if (tim != null) {
             try {
                 TvInputInfo info = tim.getTvInputInfo(inputId);
@@ -3181,7 +3198,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         int width = Math.max(anchor.getWidth(), (int) (150 * density));
         final PopupWindow popup = glassPopup(panel, width);
 
-        TvInputManager tim = (TvInputManager) getSystemService(TV_INPUT_SERVICE);
+        TvInputManager tim = tvInputManager();
         // inputs_connected_only: ports without a connected device and the AV jacks fold behind a "More inputs" row.
         boolean connectedOnly = inputsConnectedOnly;
         List<View> folded = new ArrayList<>();
