@@ -283,6 +283,19 @@ public final class CoreSelfTest {
         check(AppManager.uninstall(ap, new AppManager.App("bad; reboot") ) != null && ap.history.stream().noneMatch(c -> c.contains("reboot")), "an invalid package name never reaches the shell");
         check(AppManager.enable(ap, home) == null && ap.enabled("com.vendor.home"), "a disabled app is enabled again");
 
+        // ---- Google Play: allowed, with a warning (it is often replaced by uninstalling and installing a newer APK)
+        FakeTv play = fresh(25);
+        play.installed.add("com.android.vending");
+        play.systemPkgs.add("com.android.vending");
+        AppManager.App vend = AppManager.list(play).stream().filter(a -> a.pkg.equals("com.android.vending")).findFirst().get();
+        check(AppManager.blockedReason(vend, new java.util.LinkedHashSet<>(), null) == null && AppManager.warning(vend) != null && AppManager.warning(vend).contains("Google Play"), "Google Play may be uninstalled, with a warning");
+        check(AppManager.blockedReason(AppManager.list(play).stream().filter(a -> a.pkg.equals("com.android.tv.settings")).findFirst().get(), new java.util.LinkedHashSet<>(), null) != null, "Settings is still protected");
+        check(AppManager.uninstall(play, vend) == null && play.removedPkgs.contains("com.android.vending"), "Google Play uninstalls for this TV");
+        AppManager.App upd = new AppManager.App("com.android.vending");
+        upd.system = true;
+        upd.path = "/data/app/com.android.vending-1/base.apk";
+        check(upd.updatedSystem() && upd.kind().contains("updated") && !vend.updatedSystem(), "an updated system app is recognised by its APK path");
+
         // ---- install an APK from the phone
         java.io.File apkFile = java.io.File.createTempFile("good", ".apk");
         try (java.util.zip.ZipOutputStream zo = new java.util.zip.ZipOutputStream(new java.io.FileOutputStream(apkFile))) {

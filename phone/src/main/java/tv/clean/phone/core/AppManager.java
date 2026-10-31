@@ -26,9 +26,14 @@ public final class AppManager {
             this.pkg = pkg;
         }
 
+        /** A system app whose current APK is an update in /data: removing the update puts the built-in version back. */
+        public boolean updatedSystem() {
+            return system && !removed && path.startsWith("/data/");
+        }
+
         public String kind() {
             if (removed) return "Removed system app";
-            return (system ? "System app" : "App") + (disabled ? " - disabled" : "");
+            return (system ? (updatedSystem() ? "System app (updated)" : "System app") : "App") + (disabled ? " - disabled" : "");
         }
     }
 
@@ -91,13 +96,25 @@ public final class AppManager {
         return r;
     }
 
+    public static final String PLAY_STORE = "com.android.vending";
+
+    /** A caution to show before removing an app that is allowed but needs care, or null. */
+    public static String warning(App a) {
+        if (PLAY_STORE.equals(a.pkg)) {
+            return "Google Play is the app store: without it the TV cannot install or update apps from the store, and apps that need Google "
+                + "services may stop working. Use this to replace it with a newer Google Play APK (Install an APK, right after), "
+                + "not to leave the TV without one.";
+        }
+        return null;
+    }
+
     /** Why this app must not be removed from the list, or null when it may be. */
     public static String blockedReason(App a, Set<String> launchers, String homePackage) {
         if (!Guards.isValidName(a.pkg)) return "not a valid package name";
         if (a.pkg.equals(Guards.OUR_LAUNCHER)) return "this is the clean launcher: use Undo / restore to remove it";
         if (Guards.isCore(a.pkg)) return "core Android/TV software: removing it can stop the TV from starting";
         if (launchers.contains(a.pkg) || a.pkg.equals(homePackage)) return "a launcher: switch Home to another launcher first";
-        if (a.system && Guards.neverSuggest(a.pkg)) return "the Play Store, accounts, keyboard, remote or similar: other apps depend on it";
+        if (a.system && !PLAY_STORE.equals(a.pkg) && Guards.neverSuggest(a.pkg)) return "the Play Store, accounts, keyboard, remote or similar: other apps depend on it";
         return null;
     }
 
@@ -108,6 +125,13 @@ public final class AppManager {
         String out = sh.run(cmd + " 2>&1", 120000);
         if (out.contains("Success")) return null;
         return explain(out);
+    }
+
+    /** Removes the update of a system app (back to the built-in version): plain {@code pm uninstall}. Null on success. */
+    public static String removeUpdates(TvShell sh, App a) throws IOException {
+        if (!Guards.isValidName(a.pkg)) return "not a valid package name";
+        String out = sh.run("pm uninstall " + a.pkg + " 2>&1", 120000);
+        return out.contains("Success") ? null : explain(out);
     }
 
     /** Brings back a system app that was removed for this user. */

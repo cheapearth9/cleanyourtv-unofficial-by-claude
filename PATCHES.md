@@ -12,6 +12,7 @@ Android 7.0 / 7.1 (API 24 / 25) instead of Android 8+:
 | `WallpaperCaptions.java`, `GuardKeep.java`, `Order.java` | `Files.readAllLines` / `String.join` (API 26) replaced with `BufferedReader` / `TextUtils.join` |
 | `MainActivity.java` (`tvInputManager()`) | Boxes that are not Android TV certified hand out a `TvInputManager` whose service is null, so `getTvInputList()` threw `NullPointerException` in `onResume`. Every use now goes through a helper that treats such a manager as "no inputs" |
 | `SystemSettings.java`, `AndroidManifest.xml` | On boxes that carry both a phone-style Settings app and the AOSP TV one (non-certified Amlogic/Rockchip boxes), the standard Settings actions opened the phone-style app. The TV settings app (`com.android.tv.settings`) is now tried first, then the normal lookup |
+| `res/values/config.xml` | `app_library`, `library_button`, `app_library_selection` are ON by default (upstream: off): apps that only declare the phone LAUNCHER category (ZArchiver, file managers, players) are not on Home, and the App library lists every launchable app with OK adding / removing its Home shortcut |
 | `time/*.java` (new) and every file importing `java.time.*` | **`java.time` does not exist on Android 7** (it arrived in API 26): the launcher crashed at start with `NoClassDefFoundError: java.time.LocalDate`. A small stand-in in `com.gathin.tvhome.time` (only what the launcher calls) replaces it; `tools/jtest/TimeCompatTest.java` checks it against the real `java.time` (42,883 comparisons). Core-library desugaring is no longer used |
 
 I compiled every launcher source against the API 24 platform jar (with the JDK's `java.*` taken out of the picture, which
@@ -53,3 +54,5 @@ The phone app (`phone/`) is new code. Its debloat logic is a port of upstream `t
   The switch starts in whatever state the TV is in; changing it and pressing Make it clean applies it, and turning it off
   restores the value the setting had before (kept in the undo record, which Undo / restore also honours). Android 11+ ignores
   the setting, so the switch is not shown there.
+* Google Play (`com.android.vending`) can be uninstalled from the Apps screen, after a warning: replacing it with a newer APK
+  often needs the old one removed first. Updated system apps also get "Remove updates (back to the built-in version)".

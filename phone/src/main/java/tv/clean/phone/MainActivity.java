@@ -1053,13 +1053,14 @@ public class MainActivity extends Activity {
                 new AlertDialog.Builder(this).setTitle("Cannot uninstall").setMessage(a.pkg + ": " + blocked + ".").setPositiveButton("OK", null).show();
                 return;
             }
-            confirmUninstall(a, "Uninstall " + a.pkg + "?", "The app and its data are deleted from the TV.");
+            confirmUninstall(a, "Uninstall " + a.pkg + "?", withWarning(a, "The app and its data are deleted from the TV."));
             return;
         }
         // system or disabled: offer the reversible choices
         final List<String> labels = new ArrayList<>();
         if (a.disabled) labels.add("Enable");
         if (!a.disabled && blocked == null) labels.add("Disable (reversible, recorded for Undo)");
+        if (a.updatedSystem()) labels.add("Remove updates (back to the built-in version)");
         if (blocked == null) labels.add("Uninstall for this TV (can be brought back)");
         if (labels.isEmpty()) {
             new AlertDialog.Builder(this).setTitle("Protected").setMessage(a.pkg + ": " + blocked + ".").setPositiveButton("OK", null).show();
@@ -1077,6 +1078,21 @@ public class MainActivity extends Activity {
                                 return AppManager.enable(shell, a);
                             }
                         });
+                    } else if (l.startsWith("Remove updates")) {
+                        new AlertDialog.Builder(MainActivity.this).setTitle("Remove updates of " + a.pkg + "?")
+                            .setMessage(withWarning(a, "The built-in version comes back. Its data is kept."))
+                            .setNegativeButton("Cancel", null)
+                            .setPositiveButton("Remove updates", new DialogInterface.OnClickListener() {
+                                @Override
+                                public void onClick(DialogInterface d2, int w) {
+                                    appTask("Removing updates of " + a.pkg, new Task() {
+                                        @Override
+                                        public String run() throws Exception {
+                                            return AppManager.removeUpdates(shell, a);
+                                        }
+                                    });
+                                }
+                            }).show();
                     } else if (l.startsWith("Disable")) {
                         appTask("Disabling " + a.pkg, new Task() {
                             @Override
@@ -1089,10 +1105,15 @@ public class MainActivity extends Activity {
                         });
                     } else {
                         confirmUninstall(a, "Uninstall " + a.pkg + " for this TV?",
-                            "It is removed for this TV's user only. The app stays in the system and can be brought back from the Removed list.");
+                            withWarning(a, "It is removed for this TV's user only. The app stays in the system and can be brought back from the Removed list."));
                     }
                 }
             }).setNegativeButton("Cancel", null).show();
+    }
+
+    private String withWarning(AppManager.App a, String text) {
+        String w = AppManager.warning(a);
+        return w == null ? text : "WARNING: " + w + "\n\n" + text;
     }
 
     private void confirmUninstall(final AppManager.App a, String title, String message) {
