@@ -46,6 +46,15 @@ public final class ReconnectSelfTest {
             Thread.sleep(200);
             sh.push("hello".getBytes("UTF-8"), "/data/local/tmp/x", 0644);
             check(new String(tv.files.get("/data/local/tmp/x"), "UTF-8").equals("hello"), "connection cut: a push is retried too");
+            File big = File.createTempFile("big", ".apk");
+            byte[] blob = new byte[3_000_000];
+            new java.util.Random(5).nextBytes(blob);
+            Files.write(big.toPath(), blob);
+            long[] last = {0};
+            tv.dropAll();
+            Thread.sleep(200);
+            sh.pushFile(big, "/data/local/tmp/big.apk", 0644, (sent, total) -> last[0] = sent);
+            check(java.util.Arrays.equals(tv.files.get("/data/local/tmp/big.apk"), blob) && last[0] == blob.length, "a 3 MB file streams across, byte-identical, with progress (even after a cut)");
             check(sh.reconnects() >= 3 && tv.problems.isEmpty(), "reconnected " + sh.reconnects() + " times, no protocol problems " + tv.problems);
             sh.close();
         }

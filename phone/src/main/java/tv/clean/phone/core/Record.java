@@ -13,6 +13,8 @@ public final class Record {
     public boolean launcherInstalled;
     public final List<String> disabled = new ArrayList<>();
     public String savedAt = "";
+    /** policy_control before this app hid the system bars ("null" = it was unset); null when this app did not change it. */
+    public String barsBefore;
 
     public String serialize() {
         StringBuilder sb = new StringBuilder("cleanyourtv-record 1\n");
@@ -21,7 +23,13 @@ public final class Record {
         sb.append("home=").append(home).append('\n');
         sb.append("launcher=").append(launcherInstalled ? "1" : "0").append('\n');
         for (String p : disabled) sb.append("disabled=").append(p).append('\n');
+        if (barsBefore != null) sb.append("bars_before=").append(barsBefore).append('\n');
         return sb.toString();
+    }
+
+    /** True when nothing is recorded: the record file is then not needed. */
+    public boolean isEmpty() {
+        return stock.isEmpty() && home.isEmpty() && !launcherInstalled && disabled.isEmpty() && barsBefore == null;
     }
 
     /** Returns null when the text is not a record. Lines with bad package names are dropped. */
@@ -39,6 +47,7 @@ public final class Record {
                 case "home": if (v.isEmpty() || v.matches("[A-Za-z0-9_.]+/[A-Za-z0-9_.$]+")) r.home = v; break;
                 case "launcher": r.launcherInstalled = v.equals("1"); break;
                 case "disabled": if (Guards.isValidName(v) && !r.disabled.contains(v)) r.disabled.add(v); break;
+                case "bars_before": if (SystemBars.isSafeValue(v) && !v.isEmpty()) r.barsBefore = v; break;
                 default: break;
             }
         }

@@ -185,30 +185,51 @@ public final class AdbConnection implements Closeable {
 
     // ------------------------------------------------------------------ sync push
 
+    /** Called as a push proceeds. */
+    public interface Progress {
+        void onProgress(long sent, long total);
+    }
+
     /** Copies {@code data} to {@code remotePath} on the TV with the given file mode (e.g. 0644). */
     public void push(byte[] data, String remotePath, int mode, int timeoutMs) throws IOException {
+        pushStream(new java.io.ByteArrayInputStream(data), data.length, remotePath, mode, null);
+    }
+
+    /** Streams {@code total} bytes from {@code src} (a large APK never has to fit in memory). */
+    public void pushStream(InputStream src, long total, String remotePath, int mode, Progress progress) throws IOException {
         try {
-            pushInner(data, remotePath, mode, timeoutMs);
+            pushInner(src, total, remotePath, mode, progress);
         } catch (IOException | RuntimeException e) {
             broken = true;
             throw e;
         }
     }
 
-    private void pushInner(byte[] data, String remotePath, int mode, int timeoutMs) throws IOException {
+    private void pushInner(InputStream src, long total, String remotePath, int mode, Progress progress) throws IOException {
         openStream("sync:");
-        long deadline = System.currentTimeMillis() + timeoutMs;
+        long deadline = System.currentTimeMillis() + 120000;
         String spec = remotePath + "," + (0100000 | (mode & 0777));
         byte[] specBytes = spec.getBytes(StandardCharsets.UTF_8);
         writeStream(concat("SEND".getBytes(StandardCharsets.US_ASCII), le32(specBytes.length), specBytes));
         int chunk = Math.min(64 * 1024, maxData - 8);
-        for (int off = 0; off < data.length; off += chunk) {
-            int n = Math.min(chunk, data.length - off);
+        byte[] buf = new byte[chunk];
+        long sent = 0;
+        while (true) {
+            int n = 0;
+            while (n < chunk) {
+                int r = src.read(buf, n, chunk - n);
+                if (r < 0) break;
+                n += r;
+            }
+            if (n == 0) break;
             byte[] msg = new byte[8 + n];
             System.arraycopy("DATA".getBytes(StandardCharsets.US_ASCII), 0, msg, 0, 4);
             System.arraycopy(le32(n), 0, msg, 4, 4);
-            System.arraycopy(data, off, msg, 8, n);
+            System.arraycopy(buf, 0, msg, 8, n);
             writeStream(msg);
+            sent += n;
+            if (progress != null) progress.onProgress(sent, total);
+            if (n < chunk) break;
         }
         writeStream(concat("DONE".getBytes(StandardCharsets.US_ASCII), le32((int) (System.currentTimeMillis() / 1000))));
         // answer: "OKAY" + u32 0, or "FAIL" + u32 len + message
