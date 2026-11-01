@@ -179,6 +179,21 @@ public final class AdbConnection implements Closeable {
         return new ShellResult(text, exit);
     }
 
+    /**
+     * Asks adbd to restart as root (what "adb root" does). Returns adbd's answer, e.g. "restarting adbd as root" or
+     * "adbd cannot run as root in production builds". After a restart this connection is dead: the caller reconnects.
+     */
+    public String requestRoot() throws IOException {
+        broken = true;
+        openStream("root:");
+        try {
+            byte[] raw = readUntilClose(10000);
+            return new String(raw, StandardCharsets.UTF_8).trim();
+        } catch (IOException e) {
+            return "";   // adbd dropped the connection while restarting: that is the success case
+        }
+    }
+
     public String shellOutput(String command, int timeoutMs) throws IOException {
         return shell(command, timeoutMs).output;
     }

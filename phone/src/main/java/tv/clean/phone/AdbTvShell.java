@@ -108,6 +108,28 @@ public final class AdbTvShell implements TvShell, Closeable {
         }
     }
 
+    @Override
+    public synchronized boolean ensureRoot() throws IOException {
+        if (run("id 2>&1", 15000).contains("uid=0")) return true;
+        AdbConnection c = live();
+        String answer = "";
+        try {
+            answer = c.requestRoot();
+        } catch (IOException ignored) {
+            // the connection went away with the restart
+        }
+        drop();
+        if (answer.contains("cannot run as root") || answer.contains("not allowed")) return false;
+        try {
+            Thread.sleep(2000);
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            return false;
+        }
+        reconnect();
+        return run("id 2>&1", 15000).contains("uid=0");
+    }
+
     private AdbConnection live() throws IOException {
         if (conn == null || conn.isBroken()) {
             note("Reconnecting to the TV...");
