@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The "Clear all" pill: the normal text pill with the Material clear_all icon, added in MainActivity.addClearAllButton. -->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    style="@style/TopButton"
+    android:text="@string/clear_all"
+    android:drawableStart="@drawable/ic_clear_all"
+    android:nextFocusDown="@+id/grid" />

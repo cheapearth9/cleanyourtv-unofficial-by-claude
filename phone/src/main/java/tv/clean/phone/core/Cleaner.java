@@ -607,6 +607,7 @@ public final class Cleaner {
         }
         sh.run("rm -f " + RECORD_PATH, 15000);
         if (!rec.stock.isEmpty()) sh.run("am start -a " + HOME_ACTION + " -c " + HOME_CAT + " 2>&1; true", 30000);
+        sh.run("settings delete global " + AirPlay.SETTING + " 2>&1; true", 20000);   // the launcher's AirPlay button goes with the launcher
         if (rec.barsBefore != null) {
             try {
                 SystemBars.apply(sh, tv, false, rec, log);

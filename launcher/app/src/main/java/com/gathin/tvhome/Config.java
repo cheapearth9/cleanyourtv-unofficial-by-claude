@@ -109,6 +109,10 @@ final class Config {
     final boolean openOnStartChoice;
     /** Seconds the boot's app waits for a validated network; 0 opens it at once (open_on_start_network_wait). */
     final int openOnStartNetworkWait;
+    /** An AirPlay pill left of the network pill, shown while the AirPlay receiver app is installed (config.xml airplay_button). */
+    final boolean airplayButton;
+    /** A "Clear all" pill that ends the background apps (config.xml clear_all_button). */
+    final boolean clearAllButton;
     /** The focused dock app's name in large type above the dock (config.xml, dock_title). */
     final boolean dockTitle;
     /** The dock as its own row: band, no names, parked low (config.xml dock_row). false: one plain grid. */
@@ -279,7 +283,7 @@ final class Config {
                    boolean keyFilter, boolean dockGlass, String glowStyle, boolean wallpaperCaptions,
                    boolean handleViewInputs, boolean tileMenu, boolean dockEvenPadding, boolean dockBand, boolean cinematicDots, boolean cinematicWhiteFocus, boolean wifiStatusColor, int cinematicScrim, int cinematicArt,
                    Map<String, Set<String>> wallpaperMoods, boolean gamepadPassthrough, boolean consumeVolumeKeys, boolean powerOnHome, boolean homeLongPressHome, boolean wifiStatusWarnings, List<String> topBarApps, boolean showGreeting, boolean headerWhite, boolean clockWallpaper, int clockWallpaperDim, boolean clockGlow, String glassStyle, boolean singleRow, boolean dockBandAll, boolean lunarDate, int lunarUtcOffset, boolean dateBelowClock, boolean vpnPill, String locale, boolean powerOnHomeAlways, boolean inputsConnectedOnly,
-                   int openOnStartNetworkWait) {
+                   int openOnStartNetworkWait, boolean airplayButton, boolean clearAllButton) {
         this.handleViewInputs = handleViewInputs;
         this.tileMenu = tileMenu;
         this.inputKeycodes = inputKeycodes;
@@ -378,6 +382,8 @@ final class Config {
         this.powerOnHomeAlways = powerOnHomeAlways;
         this.inputsConnectedOnly = inputsConnectedOnly;
         this.openOnStartNetworkWait = openOnStartNetworkWait;
+        this.airplayButton = airplayButton;
+        this.clearAllButton = clearAllButton;
         this.wifiStatusWarnings = wifiStatusWarnings;
         this.topBarApps = Collections.unmodifiableList(topBarApps);
         this.showGreeting = showGreeting;
@@ -443,6 +449,8 @@ final class Config {
         boolean bootToLiveTv = res.getBoolean(R.bool.boot_to_live_tv);
         boolean openOnStartChoice = res.getBoolean(R.bool.open_on_start_choice);
         int openOnStartNetworkWait = res.getInteger(R.integer.open_on_start_network_wait);
+        boolean airplayButton = res.getBoolean(R.bool.airplay_button);
+        boolean clearAllButton = res.getBoolean(R.bool.clear_all_button);
         boolean dockTitle = res.getBoolean(R.bool.dock_title);
         boolean dockRow = res.getBoolean(R.bool.dock_row);
         boolean topMenu = res.getBoolean(R.bool.top_menu);
@@ -551,6 +559,8 @@ final class Config {
             bootToLiveTv = bool(json, "boot_to_live_tv", bootToLiveTv);
             openOnStartChoice = bool(json, "open_on_start_choice", openOnStartChoice);
             openOnStartNetworkWait = integer(json, "open_on_start_network_wait", openOnStartNetworkWait, 0, 600);
+            airplayButton = bool(json, "airplay_button", airplayButton);
+            clearAllButton = bool(json, "clear_all_button", clearAllButton);
             dockTitle = bool(json, "dock_title", dockTitle);
             dockRow = bool(json, "dock_row", dockRow);
             topMenu = bool(json, "top_menu", topMenu);
@@ -668,6 +678,8 @@ final class Config {
         Festival festival = json == null ? Festival.NONE : Festival.parse(string(json, "festival", ""),
                 string(json, "festival_until", ""), string(json, "greeting", ""), string(json, "accent_color", ""));
 
+        // The phone app's AirPlay switch is a global setting, so it works whether or not a theme config was pushed.
+        airplayButton = airplayButton || airplaySetting(ctx);
         return new Config(dock, fillDock, hidden, libraryApps, libraryExcludedApps, liveTv, liveTvAction, liveTvInputId, packageMap(launchActions), packageMap(appLabels),
                 packageMap(appBanners), panelService, panelAction, panelExtra, coocaaSources, inputAction, inputSources, inputUriScheme, Math.max(1, columns),
                 Math.max(0, rowsBelow), animations, advancedEffects, shamsi, greetingName, moduleCards, reducedMotion, bootToLiveTv,
@@ -682,7 +694,15 @@ final class Config {
                 consumeVolumeKeys, powerOnHome, homeLongPressHome, wifiStatusWarnings, topBarApps, showGreeting, headerWhite, clockWallpaper,
                 Math.max(0, Math.min(90, clockWallpaperDim)), clockGlow, glassStyle, singleRow && dockRow, dockBandAll, lunar, lunarOffset,
                 dateBelowClock, vpnPill, locale, powerOnHomeAlways, inputsConnectedOnly,
-                Math.max(0, Math.min(600, openOnStartNetworkWait)));
+                Math.max(0, Math.min(600, openOnStartNetworkWait)), airplayButton, clearAllButton);
+    }
+
+    private static boolean airplaySetting(Context ctx) {
+        try {
+            return android.provider.Settings.Global.getInt(ctx.getContentResolver(), "cyt_airplay", 0) == 1;
+        } catch (RuntimeException e) {
+            return false;
+        }
     }
 
     /**

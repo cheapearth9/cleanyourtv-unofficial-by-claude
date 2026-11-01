@@ -810,6 +810,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         });
         btnLibraryTop.setVisibility(cfg.libraryButton && cfg.appLibrary ? View.VISIBLE : View.GONE);
         addTopBarApps(cfg.topBarApps, cfg.launchActions);
+        // First, so it sits left of the AirPlay pill (each one is added just before the network pill).
+        if (cfg.clearAllButton) addClearAllButton(cfg.iconOnlyButtons);
+        if (cfg.airplayButton) addAirplayButton(cfg.iconOnlyButtons);
         iconOnlyButtons = cfg.iconOnlyButtons;
         topMenu = cfg.topMenu;
         wifiIconOnly = iconOnlyButtons && cfg.wifiLabelWidth <= 0;
@@ -2466,6 +2469,47 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             bar.addView(button, bar.indexOfChild(getResources().getBoolean(R.bool.rtl_menu_bar) ? btnVpn : btnWifi));
             topAppButtons.add(button);
         }
+    }
+
+    /** The "Clear all" pill: ends the background apps and says how much memory is free now. */
+    private void addClearAllButton(boolean iconOnly) {
+        ViewGroup bar = findViewById(R.id.topButtons);
+        TextView button = (TextView) getLayoutInflater().inflate(R.layout.top_clear_all_button, bar, false);
+        button.setId(View.generateViewId());
+        button.setOnClickListener(v -> {
+            v.setEnabled(false);
+            ClearAll.run(this, (apps, freeBytes, freedBytes) -> {
+                v.setEnabled(true);
+                long freeMb = freeBytes / (1024 * 1024);
+                long freedMb = freedBytes / (1024 * 1024);
+                Toast.makeText(this, freedMb > 0 ? getString(R.string.clear_all_done, freeMb, freedMb)
+                        : getString(R.string.clear_all_nothing, freeMb), Toast.LENGTH_LONG).show();
+            });
+        });
+        if (iconOnly) makeIconOnly(button);
+        bar.addView(button, bar.indexOfChild(getResources().getBoolean(R.bool.rtl_menu_bar) ? btnVpn : btnWifi));
+        topAppButtons.add(button);
+    }
+
+    private static final String AIRPLAY_PACKAGE = "io.github.jqssun.airplay";
+
+    /**
+     * The "AirPlay" pill, left of the network pill like a top_bar_apps button. It opens the AirPlay receiver app and is
+     * not added while that app is not installed or is disabled, so with the setting on but no receiver there is nothing to press.
+     */
+    private void addAirplayButton(boolean iconOnly) {
+        PackageManager pm = getPackageManager();
+        Intent launch = pm.getLeanbackLaunchIntentForPackage(AIRPLAY_PACKAGE);
+        if (launch == null) launch = pm.getLaunchIntentForPackage(AIRPLAY_PACKAGE);
+        if (launch == null) return;
+        ViewGroup bar = findViewById(R.id.topButtons);
+        TextView button = (TextView) getLayoutInflater().inflate(R.layout.top_airplay_button, bar, false);
+        button.setId(View.generateViewId());
+        Intent target = launch;
+        button.setOnClickListener(v -> open(new Intent(target)));
+        if (iconOnly) makeIconOnly(button);
+        bar.addView(button, bar.indexOfChild(getResources().getBoolean(R.bool.rtl_menu_bar) ? btnVpn : btnWifi));
+        topAppButtons.add(button);
     }
 
     @Override public void onLibraryUp() {

@@ -12,6 +12,14 @@ public interface TvShell {
     /** Copies bytes to a file on the TV. */
     void push(byte[] data, String remotePath, int mode) throws IOException;
 
+    /**
+     * True when commands now run as root. Real connections also ask adbd to restart as root (the "adb root" step,
+     * which only some boxes allow); the default only looks at who we already are.
+     */
+    default boolean ensureRoot() throws IOException {
+        return run("id 2>&1", 15000).contains("uid=0");
+    }
+
     /** Progress of a file push. */
     interface Progress {
         void onProgress(long sent, long total);

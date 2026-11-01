@@ -134,12 +134,34 @@ public final class AppManager {
         return out.contains("Success") ? null : explain(out);
     }
 
-    /** Brings back a system app that was removed for this user. */
+    /**
+     * Brings back a system app that was removed for this user. Android 7.1 on some boxes has no {@code pm install-existing};
+     * then the app's own built-in APK (from its codePath) is installed over itself, which switches it on for the user again.
+     */
     public static String reinstall(TvShell sh, App a) throws IOException {
         if (!Guards.isValidName(a.pkg)) return "not a valid package name";
         String out = sh.run("pm install-existing --user 0 " + a.pkg + " 2>&1", 60000);
-        if (bad(out)) out = sh.run("pm install-existing " + a.pkg + " 2>&1", 60000);
-        return bad(out) ? explain(out) : null;
+        if (bad(out) && !out.contains("unknown command")) out = sh.run("pm install-existing " + a.pkg + " 2>&1", 60000);
+        if (!bad(out)) return null;
+        // fallback: the built-in APK
+        String dump = Cleaner.filtered(sh, "dumpsys package " + a.pkg, "codePath=", 60000);
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("codePath=(/[A-Za-z0-9_./-]+)").matcher(dump);
+        if (!m.find()) return explain(out);
+        String dir = m.group(1);
+        if (!(dir.startsWith("/system/") || dir.startsWith("/vendor/") || dir.startsWith("/product/"))) return explain(out);
+        String apk = dir.endsWith(".apk") ? dir : null;
+        if (apk == null) {
+            for (String l : sh.run("ls " + dir + " 2>/dev/null", 20000).split("\n")) {
+                String t = l.trim();
+                if (t.endsWith(".apk") && t.matches("[A-Za-z0-9_.-]+")) {
+                    apk = dir + "/" + t;
+                    break;
+                }
+            }
+        }
+        if (apk == null) return explain(out);
+        String res = sh.run("pm install -r -d " + apk + " 2>&1", 180000);
+        return res.contains("Success") ? null : explain(res);
     }
 
     public static String enable(TvShell sh, App a) throws IOException {

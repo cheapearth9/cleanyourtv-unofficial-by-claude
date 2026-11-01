@@ -51,6 +51,7 @@ import java.util.concurrent.Executors;
 
 import tv.clean.phone.adb.AdbConnection;
 import tv.clean.phone.adb.AdbKey;
+import tv.clean.phone.core.AirPlay;
 import tv.clean.phone.core.ApkInstaller;
 import tv.clean.phone.core.AppManager;
 import tv.clean.phone.core.Cleaner;
@@ -98,6 +99,8 @@ public class MainActivity extends Activity {
     private TextView countView;
     private CheckBox barsBox;
     private boolean barsHiddenNow;
+    private CheckBox airplayBox;
+    private boolean airplayOnNow;
     private boolean barsSupported;
     private LinearLayout details;
     private ProgressBar progress;
@@ -301,6 +304,7 @@ public class MainActivity extends Activity {
                     homeComponent = Cleaner.homeComponent(shell, info);
                     loadLauncherChoices();
                     readBars();
+                    readAirplay();
                     ui.post(new Runnable() {
                         @Override
                         public void run() {
@@ -381,6 +385,16 @@ public class MainActivity extends Activity {
             barsHiddenNow = SystemBars.isHidden(SystemBars.current(shell));
         } catch (IOException ignored) {
             // shown as "not hidden"; applying it later reports the real problem
+        }
+    }
+
+    /** Whether the launcher's AirPlay button is switched on by this app right now. */
+    private void readAirplay() {
+        airplayOnNow = false;
+        try {
+            airplayOnNow = AirPlay.enabled(shell);
+        } catch (IOException ignored) {
+            // shown as off; applying it later reports the real problem
         }
     }
 
@@ -466,6 +480,20 @@ public class MainActivity extends Activity {
                 + "Your remote's Home and Back keys keep working. Untick it and press Make it clean to bring the bars back as they were."));
             root.addView(bc);
         }
+        LinearLayout ac = card();
+        airplayBox = check("AirPlay: get an AirPlay button on the launcher", airplayOnNow);
+        airplayBox.setOnCheckedChangeListener(new android.widget.CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(android.widget.CompoundButton b, boolean on) {
+                updateCount();
+            }
+        });
+        ac.addView(airplayBox);
+        ac.addView(dim("Lets iPhones and Macs mirror their screen to this TV. This phone downloads the free, open-source AirPlay Receiver app "
+            + "(github.com/jqssun/android-airplay-server, GPL-3.0) and installs it on the TV, then an AirPlay button appears on the launcher, "
+            + "left of Wi-Fi, and opens it. Needs internet on this phone. Untick it and press Make it clean to hide the button again "
+            + "(the receiver app stays installed; remove it in the Apps list)."));
+        root.addView(ac);
         runButton = button("Make it clean", true);
         runButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -607,8 +635,10 @@ public class MainActivity extends Activity {
         String t = n + (n == 1 ? " thing" : " things") + " to switch off";
         if (launcher) t += " + a clean launcher";
         if (barsChange) t += barsBox.isChecked() ? " + hide the bars" : " + bring the bars back";
+        boolean airplayChange = airplayBox != null && airplayBox.isChecked() != airplayOnNow;
+        if (airplayChange) t += airplayBox.isChecked() ? " + the AirPlay button" : " + hide the AirPlay button";
         countView.setText(t);
-        if (runButton != null) runButton.setEnabled(n > 0 || launcher || barsChange);
+        if (runButton != null) runButton.setEnabled(n > 0 || launcher || barsChange || airplayChange);
     }
 
     private boolean hasLauncherAsset() {
@@ -639,7 +669,9 @@ public class MainActivity extends Activity {
             ? launcherChoices.get(stockSpinner.getSelectedItemPosition() - 1) : "";
         final boolean barsChange = barsBox != null && barsBox.isChecked() != barsHiddenNow;
         final boolean hideBars = barsBox != null && barsBox.isChecked();
-        if (selected.isEmpty() && !launcher && !barsChange) {
+        final boolean airplayChange = airplayBox != null && airplayBox.isChecked() != airplayOnNow;
+        final boolean airplayOn = airplayBox != null && airplayBox.isChecked();
+        if (selected.isEmpty() && !launcher && !barsChange && !airplayChange) {
             toast("Nothing selected.");
             return;
         }
@@ -649,6 +681,7 @@ public class MainActivity extends Activity {
         }
         StringBuilder msg = new StringBuilder();
         if (barsChange) msg.append(hideBars ? "Hide the on-screen buttons and the notification bar.\n" : "Bring the on-screen buttons and the notification bar back.\n");
+        if (airplayChange) msg.append(airplayOn ? "Download the AirPlay receiver to this phone, install it on the TV and add the AirPlay button.\n" : "Hide the AirPlay button.\n");
         if (!selected.isEmpty()) msg.append("Disable ").append(selected.size()).append(" apps (reversible).\n");
         if (launcher) {
             msg.append("Install the clean launcher.\n");
@@ -663,7 +696,7 @@ public class MainActivity extends Activity {
             .setPositiveButton("Go", new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface d, int w) {
-                    runApply(selected, launcher, stock, alsoDisable, barsChange, hideBars);
+                    runApply(selected, launcher, stock, alsoDisable, barsChange, hideBars, airplayChange, airplayOn);
                 }
             }).show();
     }
@@ -726,7 +759,7 @@ public class MainActivity extends Activity {
     };
 
     private void runApply(final List<String> selected, final boolean launcher, final String stock, final List<String> alsoDisable,
-                          final boolean barsChange, final boolean hideBars) {
+                          final boolean barsChange, final boolean hideBars, final boolean airplayChange, final boolean airplayOn) {
         showRun("Working on " + info.title());
         final byte[] apk = launcher ? readAsset("launcher.apk") : null;
         final byte[] cfg = launcher && layoutBox != null && layoutBox.isChecked() && plan.best != null
@@ -763,6 +796,22 @@ public class MainActivity extends Activity {
                             summary.append(" ").append(r.stillEnabled.size()).append(" refused by this firmware.");
                         }
                         info = TvInfo.probe(shell);
+                    }
+                    if (airplayChange) {
+                        logger.log("== AirPlay ==");
+                        try {
+                            String line = AirPlay.apply(shell, info, airplayOn, new AirPlay.Fetch() {
+                                @Override
+                                public File fetch(Log log) throws IOException {
+                                    return AirPlay.download(AirPlay.URL, new File(getCacheDir(), "airplay-receiver.apk"), log);
+                                }
+                            }, !launcher, logger);
+                            airplayOnNow = airplayOn;
+                            summary.append(summary.length() > 0 ? "\n" : "").append(line).append('\n');
+                        } catch (CleanException e) {
+                            logger.log("AirPlay: " + e.getMessage());
+                            summary.append("AirPlay unchanged: ").append(e.getMessage()).append('\n');
+                        }
                     }
                     if (launcher) {
                         logger.log("== Launcher ==");
@@ -858,6 +907,7 @@ public class MainActivity extends Activity {
                     homeComponent = Cleaner.homeComponent(shell, info);
                     loadLauncherChoices();
                     readBars();
+                    readAirplay();
                     ui.post(new Runnable() {
                         @Override
                         public void run() {
