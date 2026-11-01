@@ -332,6 +332,10 @@
          only while that app is installed. The phone app turns it on together with installing the receiver. Can also be set
          with "airplay_button" in a theme. -->
     <bool name="airplay_button">false</bool>
+
+    <!-- A "Clear all" pill, left of the AirPlay / network pill, that ends the background apps to free memory on a small box.
+         Apps that are showing or playing are left alone. false hides it. Can also be set with "clear_all_button" in a theme. -->
+    <bool name="clear_all_button">true</bool>
     <!-- Apps shown as round buttons with their own logo in the top bar, left of the network pill, in this order.
          They leave the grid. Missing apps are skipped. Can also be set with "top_bar_apps" in a theme. -->
     <string-array name="top_bar_apps" translatable="false">
