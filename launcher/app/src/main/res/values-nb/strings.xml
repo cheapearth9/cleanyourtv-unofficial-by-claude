@@ -111,4 +111,7 @@
     <string name="race_finished">Målgang</string>
     <string name="last_opened">Sist åpnet %1$s</string>
     <string name="game_live">Direkte nå</string>
+    <string name="clear_all">Fjern alle</string>
+    <string name="clear_all_done">Bakgrunnsapper lukket: %1$d MB ledig (+%2$d MB)</string>
+    <string name="clear_all_nothing">Ingenting å lukke: %1$d MB ledig</string>
 </resources>

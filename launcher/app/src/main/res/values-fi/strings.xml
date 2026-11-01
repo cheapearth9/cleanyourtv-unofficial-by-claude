@@ -112,4 +112,7 @@
     <string name="race_finished">Ruutulippu</string>
     <string name="last_opened">Viimeksi avattu %1$s</string>
     <string name="game_live">Käynnissä nyt</string>
+    <string name="clear_all">Tyhjennä kaikki</string>
+    <string name="clear_all_done">Taustasovellukset suljettu: %1$d Mt vapaana (+%2$d Mt)</string>
+    <string name="clear_all_nothing">Ei suljettavaa: %1$d Mt vapaana</string>
 </resources>

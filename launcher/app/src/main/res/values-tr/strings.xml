@@ -94,4 +94,7 @@
     </plurals>
     <string name="greeting_with_name">%1$s, %2$s</string>
     <string name="game_live">Şimdi canlı</string>
+    <string name="clear_all">Tümünü temizle</string>
+    <string name="clear_all_done">Arka plan uygulamaları kapatıldı: %1$d MB boş (+%2$d MB)</string>
+    <string name="clear_all_nothing">Kapatılacak bir şey yok: %1$d MB boş</string>
 </resources>

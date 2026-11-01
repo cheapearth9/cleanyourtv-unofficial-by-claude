@@ -99,4 +99,7 @@
     </plurals>
     <string name="greeting_with_name">%1$s, %2$s</string>
     <string name="game_live">এখন সরাসরি</string>
+    <string name="clear_all">সব সাফ করুন</string>
+    <string name="clear_all_done">ব্যাকগ্রাউন্ড অ্যাপ বন্ধ করা হয়েছে: %1$d MB ফাঁকা (+%2$d MB)</string>
+    <string name="clear_all_nothing">বন্ধ করার কিছু নেই: %1$d MB ফাঁকা</string>
 </resources>

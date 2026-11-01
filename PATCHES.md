@@ -70,3 +70,6 @@ The phone app (`phone/`) is new code. Its debloat logic is a port of upstream `t
   only ends background processes this way, so an app that is showing, playing or running a foreground service (a video, music,
   an AirPlay session) is left alone; this launcher, the Home apps and the keyboard in use are skipped. Meant for small boxes.
   The pill's icon is the Material Icons "clear_all" glyph (Apache License 2.0).
+* the "Clear all" texts (the pill and its two messages) are translated into all 28 languages the launcher ships, not only English;
+  the name "AirPlay" stays as is. While the AirPlay pill is on, the AirPlay receiver's own tile leaves the app grid (it is
+  reached from the top bar, like a `top_bar_apps` app); with the pill off it is an ordinary app tile again.

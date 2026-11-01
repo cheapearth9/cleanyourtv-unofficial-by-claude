@@ -148,4 +148,7 @@
     <string name="race_countdown_days">%1$d ימ׳ %2$d שע׳</string>
     <string name="last_opened">פתיחה אחרונה: %1$s</string>
     <string name="game_live">בשידור חי עכשיו</string>
+    <string name="clear_all">נקה הכול</string>
+    <string name="clear_all_done">אפליקציות הרקע נסגרו: %1$d MB פנויים (+%2$d MB)</string>
+    <string name="clear_all_nothing">אין מה לנקות: %1$d MB פנויים</string>
 </resources>

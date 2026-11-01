@@ -112,4 +112,7 @@
     <string name="race_finished">Geblokte vlag</string>
     <string name="last_opened">Laatst geopend %1$s</string>
     <string name="game_live">Nu live</string>
+    <string name="clear_all">Alles wissen</string>
+    <string name="clear_all_done">Achtergrond-apps afgesloten: %1$d MB vrij (+%2$d MB)</string>
+    <string name="clear_all_nothing">Niets om af te sluiten: %1$d MB vrij</string>
 </resources>

@@ -109,4 +109,7 @@
     <string name="race_finished">Bandera de quadres</string>
     <string name="last_opened">Obert per últim cop: %1$s</string>
     <string name="game_live">En directe</string>
+    <string name="clear_all">Neteja-ho tot</string>
+    <string name="clear_all_done">Aplicacions en segon pla tancades: %1$d MB lliures (+%2$d MB)</string>
+    <string name="clear_all_nothing">No hi ha res per netejar: %1$d MB lliures</string>
 </resources>

@@ -94,4 +94,7 @@
     </plurals>
     <string name="greeting_with_name">%1$s，%2$s</string>
     <string name="game_live">直播中</string>
+    <string name="clear_all">全部清除</string>
+    <string name="clear_all_done">已清除背景應用程式：可用 %1$d MB（+%2$d MB）</string>
+    <string name="clear_all_nothing">沒有可清除的項目：可用 %1$d MB</string>
 </resources>

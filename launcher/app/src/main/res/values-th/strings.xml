@@ -68,4 +68,7 @@
     </plurals>
     <string name="greeting_with_name">%1$s %2$s</string>
     <string name="game_live">กำลังถ่ายทอดสด</string>
+    <string name="clear_all">ล้างทั้งหมด</string>
+    <string name="clear_all_done">ปิดแอปพื้นหลังแล้ว: ว่าง %1$d MB (+%2$d MB)</string>
+    <string name="clear_all_nothing">ไม่มีอะไรให้ปิด: ว่าง %1$d MB</string>
 </resources>

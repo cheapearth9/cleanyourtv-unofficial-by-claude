@@ -147,4 +147,7 @@
     <!-- Cinematic top shelf (cinematic_home): %1$s is when it was last opened, e.g. "5분 전". -->
     <string name="last_opened">마지막 실행 %1$s</string>
     <string name="game_live">지금 생중계</string>
+    <string name="clear_all">모두 지우기</string>
+    <string name="clear_all_done">백그라운드 앱을 정리했습니다: %1$d MB 사용 가능 (+%2$d MB)</string>
+    <string name="clear_all_nothing">정리할 항목 없음: %1$d MB 사용 가능</string>
 </resources>

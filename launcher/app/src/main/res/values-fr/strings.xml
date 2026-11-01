@@ -95,4 +95,7 @@
     <string name="greeting_with_name">%1$s, %2$s</string>
     <string name="last_opened">Dernière ouverture : %1$s</string>
     <string name="game_live">En direct</string>
+    <string name="clear_all">Tout fermer</string>
+    <string name="clear_all_done">Applications en arrière-plan fermées : %1$d Mo libres (+%2$d Mo)</string>
+    <string name="clear_all_nothing">Rien à fermer : %1$d Mo libres</string>
 </resources>

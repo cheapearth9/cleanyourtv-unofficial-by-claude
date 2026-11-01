@@ -76,4 +76,7 @@
     </plurals>
     <string name="greeting_with_name">%1$s, %2$s</string>
     <string name="game_live">Uživo sada</string>
+    <string name="clear_all">Obriši sve</string>
+    <string name="clear_all_done">Pozadinske aplikacije zatvorene: %1$d MB slobodno (+%2$d MB)</string>
+    <string name="clear_all_nothing">Nema šta da se zatvori: %1$d MB slobodno</string>
 </resources>

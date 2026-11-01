@@ -2491,16 +2491,14 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         topAppButtons.add(button);
     }
 
-    private static final String AIRPLAY_PACKAGE = "io.github.jqssun.airplay";
-
     /**
      * The "AirPlay" pill, left of the network pill like a top_bar_apps button. It opens the AirPlay receiver app and is
      * not added while that app is not installed or is disabled, so with the setting on but no receiver there is nothing to press.
      */
     private void addAirplayButton(boolean iconOnly) {
         PackageManager pm = getPackageManager();
-        Intent launch = pm.getLeanbackLaunchIntentForPackage(AIRPLAY_PACKAGE);
-        if (launch == null) launch = pm.getLaunchIntentForPackage(AIRPLAY_PACKAGE);
+        Intent launch = pm.getLeanbackLaunchIntentForPackage(Config.AIRPLAY_PACKAGE);
+        if (launch == null) launch = pm.getLaunchIntentForPackage(Config.AIRPLAY_PACKAGE);
         if (launch == null) return;
         ViewGroup bar = findViewById(R.id.topButtons);
         TextView button = (TextView) getLayoutInflater().inflate(R.layout.top_airplay_button, bar, false);

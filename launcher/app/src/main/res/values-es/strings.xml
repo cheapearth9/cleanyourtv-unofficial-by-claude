@@ -145,4 +145,7 @@
     <string name="race_countdown_days">%1$dd %2$dh</string>
     <string name="last_opened">Abierta por última vez %1$s</string>
     <string name="game_live">En directo</string>
+    <string name="clear_all">Cerrar todo</string>
+    <string name="clear_all_done">Apps en segundo plano cerradas: %1$d MB libres (+%2$d MB)</string>
+    <string name="clear_all_nothing">Nada que cerrar: %1$d MB libres</string>
 </resources>

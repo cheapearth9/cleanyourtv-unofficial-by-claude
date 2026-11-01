@@ -97,4 +97,7 @@
     <string name="race_countdown_days">%1$dd %2$dt</string>
     <string name="last_opened">Sidst åbnet %1$s</string>
     <string name="game_live">Live nu</string>
+    <string name="clear_all">Ryd alle</string>
+    <string name="clear_all_done">Baggrundsapps lukket: %1$d MB ledigt (+%2$d MB)</string>
+    <string name="clear_all_nothing">Intet at rydde: %1$d MB ledigt</string>
 </resources>

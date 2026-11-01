@@ -150,4 +150,7 @@
          last opened, e.g. "5 minutes ago" or "yesterday, 9:40 pm". -->
     <string name="last_opened">Востаннє відкрито %1$s</string>
     <string name="game_live">Наживо зараз</string>
+    <string name="clear_all">Очистити все</string>
+    <string name="clear_all_done">Фонові додатки закрито: вільно %1$d МБ (+%2$d МБ)</string>
+    <string name="clear_all_nothing">Нічого закривати: вільно %1$d МБ</string>
 </resources>

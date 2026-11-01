@@ -110,4 +110,7 @@
     <string name="race_finished">Bendera finis</string>
     <string name="last_opened">Terakhir dibuka %1$s</string>
     <string name="game_live">Langsung sekarang</string>
+    <string name="clear_all">Hapus semua</string>
+    <string name="clear_all_done">Aplikasi latar belakang ditutup: %1$d MB tersedia (+%2$d MB)</string>
+    <string name="clear_all_nothing">Tidak ada yang perlu ditutup: %1$d MB tersedia</string>
 </resources>
