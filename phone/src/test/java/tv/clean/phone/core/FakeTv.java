@@ -49,6 +49,8 @@ final class FakeTv implements TvShell {
     boolean noGrep;              // a shell without grep
     boolean failInputCheck;      // the TV stops answering the batched dumpsys package calls
     boolean noInstallExisting;   // firmware whose pm has no install-existing
+    String installAs;            // package that a successful `pm install` of the pushed APK adds
+    String airplaySetting;       // settings global cyt_airplay (null = unset)
     String installResult;
     String policyControl;        // settings global policy_control (null = unset)
     boolean watchdogArmed;
@@ -117,7 +119,10 @@ final class FakeTv implements TvShell {
         } else if (c.contains("cyt-install.apk")) {
             if (c.startsWith("rm -f")) { files.remove("/data/local/tmp/cyt-install.apk"); }
             else if (!files.containsKey("/data/local/tmp/cyt-install.apk")) out.append("Failure [INSTALL_FAILED_INVALID_URI]\n");
-            else out.append(installResult != null ? installResult : "Success\n");
+            else {
+                out.append(installResult != null ? installResult : "Success\n");
+                if (installAs != null && (installResult == null || installResult.contains("Success"))) installed.add(installAs);
+            }
         } else if (c.contains("pm install -r")) {
             if (c.contains("pm uninstall")) ownInstalled = false;
             if (!files.containsKey("/data/local/tmp/tvhome.apk")) out.append("Failure [INSTALL_FAILED_INVALID_URI]");
@@ -204,6 +209,17 @@ final class FakeTv implements TvShell {
             installed.remove(p);
             if (p.equals("com.gathin.tvhome")) { ownInstalled = false; ownIsHome = false; }
             out.append(installed.contains(p) || (!c.startsWith("pm uninstall -k") && false) ? "Failure\n" : "Success\n");
+        } else if (c.startsWith("settings get global cyt_airplay")) {
+            out.append(airplaySetting == null ? "null" : airplaySetting).append('\n');
+        } else if (c.startsWith("settings put global cyt_airplay")) {
+            Matcher m = Pattern.compile("cyt_airplay (\\S+)").matcher(c);
+            if (m.find()) airplaySetting = m.group(1);
+        } else if (c.startsWith("settings delete global cyt_airplay")) {
+            airplaySetting = null;
+            out.append("Deleted 1 rows\n");
+        } else if (c.startsWith("pm list packages ") && !c.startsWith("pm list packages -")) {
+            String name = c.replaceAll(" 2>&1.*", "").replaceAll(".* ", "");
+            for (String p : installed) if (p.contains(name)) out.append("package:").append(p).append('\n');
         } else if (c.startsWith("mkdir -p") || c.startsWith("cmd appops")) {
             // ok
         } else if (c.startsWith("cmd package set-home-activity")) {

@@ -70,6 +70,8 @@
         <!-- Coocaa OS sources for the Inputs menu (coocaa_sources); see CoocaaSources. -->
         <provider android:authorities="com.skyworth.tv.provider" />
         <provider android:authorities="com.skyworth.tv.sdk.provider" />
+        <!-- The AirPlay receiver, so the AirPlay pill can tell whether it is installed. -->
+        <package android:name="io.github.jqssun.airplay" />
     </queries>
 
     <application

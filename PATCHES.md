@@ -56,3 +56,11 @@ The phone app (`phone/`) is new code. Its debloat logic is a port of upstream `t
   the setting, so the switch is not shown there.
 * Google Play (`com.android.vending`) can be uninstalled from the Apps screen, after a warning: replacing it with a newer APK
   often needs the old one removed first. Updated system apps also get "Remove updates (back to the built-in version)".
+* an AirPlay switch ("AirPlay: get an AirPlay button on the launcher"): on, this phone downloads the open-source AirPlay
+  Receiver (`io.github.jqssun.airplay`, jqssun/android-airplay-server, GPL-3.0) from that project's own GitHub releases page
+  (`releases/latest/download/app-release.apk`; it is never bundled in this repo or app), checks it really is that app, installs
+  it on the TV (`pm install -r -g`) and sets the global setting `cyt_airplay` to 1; an "AirPlay" pill then appears on the launcher
+  left of Wi-Fi and opens the receiver. Off: the setting goes back to 0 and the pill disappears (the receiver app is left
+  installed; remove it from the Apps screen). The launcher shows the pill only while the receiver is installed
+  (`config.xml airplay_button`, theme key `airplay_button`, or the `cyt_airplay` setting), and Undo / restore clears the setting.
+  The pill's icon is the Material Icons "airplay" glyph (Apache License 2.0), not Apple's logo.

@@ -327,6 +327,11 @@
     <!-- The Wi-Fi/Ethernet pill in the top bar. false hides it (on Android 14 with Location off it can
          only say "Wi-Fi", not the network name). Can also be set with "show_network_pill" in a theme. -->
     <bool name="show_network_pill">true</bool>
+
+    <!-- An "AirPlay" pill left of the network pill that opens the AirPlay receiver app (io.github.jqssun.airplay), shown
+         only while that app is installed. The phone app turns it on together with installing the receiver. Can also be set
+         with "airplay_button" in a theme. -->
+    <bool name="airplay_button">false</bool>
     <!-- Apps shown as round buttons with their own logo in the top bar, left of the network pill, in this order.
          They leave the grid. Missing apps are skipped. Can also be set with "top_bar_apps" in a theme. -->
     <string-array name="top_bar_apps" translatable="false">

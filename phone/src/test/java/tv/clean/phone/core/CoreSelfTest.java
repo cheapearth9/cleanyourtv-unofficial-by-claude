@@ -122,7 +122,9 @@ public final class CoreSelfTest {
 
         // restore
         Record rec = Cleaner.readTvRecord(tv);
+        tv.airplaySetting = "1";
         Cleaner.RestoreResult rr = Cleaner.restore(tv, TvInfo.probe(tv), rec, true, log);
+        check(tv.airplaySetting == null, "restore switches the launcher's AirPlay button setting off with the launcher");
         check(tv.disabled.isEmpty() && rr.failed.isEmpty(), "restore re-enables every package");
         check(rr.launcherRemoved && !tv.ownInstalled && tv.homePkg().equals("com.google.android.leanbacklauncher"), "restore removes our launcher; stock launcher is Home again");
         check(!tv.files.containsKey(Cleaner.RECORD_PATH), "record is cleaned up");
@@ -409,7 +411,105 @@ public final class CoreSelfTest {
         }
         check(refused, "safety timer: a package name that is not a package name is refused");
 
+        // ---- AirPlay switch
+        airplayTests();
+
         System.out.println(failures == 0 ? "ALL PASSED" : failures + " FAILED");
         System.exit(failures == 0 ? 0 : 1);
+    }
+
+    /** A zip that passes for the receiver's APK: a manifest naming the package, padded with noise so it is a realistic size. */
+    static java.io.File fakeReceiver(String pkg, int pad) throws Exception {
+        java.io.File f = java.io.File.createTempFile("receiver", ".apk");
+        byte[] noise = new byte[pad];
+        new java.util.Random(7).nextBytes(noise);
+        try (java.util.zip.ZipOutputStream zo = new java.util.zip.ZipOutputStream(new java.io.FileOutputStream(f))) {
+            zo.putNextEntry(new java.util.zip.ZipEntry("AndroidManifest.xml"));
+            zo.write(("<manifest package=\"" + pkg + "\"/>").getBytes("UTF-8"));
+            zo.closeEntry();
+            zo.putNextEntry(new java.util.zip.ZipEntry("classes.dex"));
+            zo.write(noise);
+            zo.closeEntry();
+        }
+        return f;
+    }
+
+    static void airplayTests() throws Exception {
+        java.util.List<String> logs = new ArrayList<>();
+        Log log = logs::add;
+        final java.io.File good = fakeReceiver(AirPlay.PACKAGE, 300_000);
+        final java.io.File other = fakeReceiver("com.someone.else", 300_000);
+        final byte[] goodBytes = java.nio.file.Files.readAllBytes(good.toPath());
+        final byte[] otherBytes = java.nio.file.Files.readAllBytes(other.toPath());
+
+        // download: a local server stands in for GitHub (redirect, error page, wrong app, cut-off)
+        com.sun.net.httpserver.HttpServer srv = com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+        srv.createContext("/ok.apk", ex -> { ex.sendResponseHeaders(200, goodBytes.length); ex.getResponseBody().write(goodBytes); ex.close(); });
+        srv.createContext("/go", ex -> { ex.getResponseHeaders().add("Location", "/ok.apk"); ex.sendResponseHeaders(302, -1); ex.close(); });
+        srv.createContext("/missing", ex -> { ex.sendResponseHeaders(404, -1); ex.close(); });
+        srv.createContext("/page", ex -> { byte[] b = "<html>not an apk</html>".getBytes(); ex.sendResponseHeaders(200, b.length); ex.getResponseBody().write(b); ex.close(); });
+        srv.createContext("/wrong.apk", ex -> { ex.sendResponseHeaders(200, otherBytes.length); ex.getResponseBody().write(otherBytes); ex.close(); });
+        srv.createContext("/cut", ex -> { ex.sendResponseHeaders(200, goodBytes.length + 5000); ex.getResponseBody().write(goodBytes); ex.close(); });
+        srv.start();
+        try {
+            String base = "http://127.0.0.1:" + srv.getAddress().getPort();
+            java.io.File dest = java.io.File.createTempFile("download", ".apk");
+            check(AirPlay.download(base + "/ok.apk", dest, log).length() == goodBytes.length, "AirPlay download: the receiver APK arrives whole");
+            check(AirPlay.download(base + "/go", dest, log).length() == goodBytes.length, "AirPlay download: a redirect is followed (GitHub serves releases through one)");
+            String[] bad = {"/missing", "/page", "/wrong.apk", "/cut"};
+            String[] why = {"an HTTP error", "an error page instead of an APK", "an APK of another app", "a cut-off download"};
+            for (int i = 0; i < bad.length; i++) {
+                boolean threw = false;
+                try {
+                    AirPlay.download(base + bad[i], dest, log);
+                } catch (java.io.IOException e) {
+                    threw = true;
+                }
+                check(threw && !dest.exists(), "AirPlay download refuses " + why[i] + " and leaves no file");
+            }
+        } finally {
+            srv.stop(0);
+        }
+
+        AirPlay.Fetch fromDisk = l -> { java.io.File c = java.io.File.createTempFile("fetched", ".apk"); java.nio.file.Files.write(c.toPath(), goodBytes); return c; };
+        AirPlay.Fetch mustNotRun = l -> { throw new AssertionError("downloaded although the receiver is already installed"); };
+
+        // on: download, install, switch on (no launcher installed, so no launcher restart)
+        FakeTv a = fresh(25);
+        a.installAs = AirPlay.PACKAGE;
+        String line = AirPlay.apply(a, TvInfo.probe(a), true, fromDisk, true, log);
+        check(a.installed.contains(AirPlay.PACKAGE) && "1".equals(a.airplaySetting) && line.contains("Installed"), "AirPlay on: receiver installed and the button switched on");
+        check(a.history.stream().noneMatch(c -> c.contains("am force-stop com.gathin.tvhome")), "no launcher restart when our launcher is not on the TV");
+
+        // already installed: no download
+        String again = AirPlay.apply(a, TvInfo.probe(a), true, mustNotRun, false, log);
+        check("1".equals(a.airplaySetting) && again.contains("already installed"), "AirPlay on again: nothing is downloaded twice");
+
+        // off: only the setting changes; the app stays
+        a.ownInstalled = true;
+        a.installed.add("com.gathin.tvhome");
+        AirPlay.apply(a, TvInfo.probe(a), false, mustNotRun, true, log);
+        check("0".equals(a.airplaySetting) && a.installed.contains(AirPlay.PACKAGE), "AirPlay off: button off, receiver app left installed");
+        check(a.history.stream().anyMatch(c -> c.startsWith("am force-stop com.gathin.tvhome")), "our launcher is restarted so the change shows");
+
+        // failures change nothing
+        FakeTv b = fresh(25);
+        try {
+            AirPlay.apply(b, TvInfo.probe(b), true, l -> { throw new java.io.IOException("Unable to resolve host"); }, false, log);
+            check(false, "no internet is reported");
+        } catch (CleanException e) {
+            check(e.getMessage().contains("Could not download") && e.getMessage().contains("internet") && b.airplaySetting == null, "no internet on the phone: clear message, the TV is untouched");
+        }
+        FakeTv c = fresh(25);
+        c.installAs = AirPlay.PACKAGE;
+        c.installResult = "Failure [INSTALL_FAILED_NO_MATCHING_ABIS]\n";
+        try {
+            AirPlay.apply(c, TvInfo.probe(c), true, fromDisk, false, log);
+            check(false, "a failed install is reported");
+        } catch (CleanException e) {
+            check(c.airplaySetting == null && !c.installed.contains(AirPlay.PACKAGE), "install refused by the TV: the button is not switched on (" + e.getMessage().substring(0, 30) + "...)");
+        }
+        good.delete();
+        other.delete();
     }
 }
