@@ -100,4 +100,10 @@
     <string name="clear_all">Ryd alle</string>
     <string name="clear_all_done">Baggrundsapps lukket: %1$d MB ledigt (+%2$d MB)</string>
     <string name="clear_all_nothing">Intet at rydde: %1$d MB ledigt</string>
+    <string name="airplay_settings">AirPlay-indstillinger</string>
+    <string name="airplay_boot">Start med tv\'et</string>
+    <string name="airplay_background">Kør videre i baggrunden</string>
+    <string name="airplay_open_app">Åbn AirPlay-appen</string>
+    <string name="airplay_needs_phone">For at ændre dette her skal du køre \"Make it clean\" én gang fra telefonappen med launcheren afkrydset.</string>
+    <string name="app_drawer_title">Alle apps</string>
 </resources>

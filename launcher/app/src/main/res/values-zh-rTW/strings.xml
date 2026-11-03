@@ -97,4 +97,10 @@
     <string name="clear_all">全部清除</string>
     <string name="clear_all_done">已清除背景應用程式：可用 %1$d MB（+%2$d MB）</string>
     <string name="clear_all_nothing">沒有可清除的項目：可用 %1$d MB</string>
+    <string name="airplay_settings">AirPlay 設定</string>
+    <string name="airplay_boot">隨電視啟動</string>
+    <string name="airplay_background">在背景持續執行</string>
+    <string name="airplay_open_app">開啟 AirPlay 應用程式</string>
+    <string name="airplay_needs_phone">若要在此變更，請在手機應用程式中勾選啟動器並執行一次「Make it clean」。</string>
+    <string name="app_drawer_title">所有應用程式</string>
 </resources>

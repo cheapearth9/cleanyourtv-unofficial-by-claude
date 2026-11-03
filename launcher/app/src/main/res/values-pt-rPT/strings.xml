@@ -14,4 +14,10 @@
     <string name="clear_all">Limpar tudo</string>
     <string name="clear_all_done">Apps em segundo plano terminadas: %1$d MB livres (+%2$d MB)</string>
     <string name="clear_all_nothing">Nada para limpar: %1$d MB livres</string>
+    <string name="airplay_settings">Definições do AirPlay</string>
+    <string name="airplay_boot">Iniciar com a TV</string>
+    <string name="airplay_background">Manter em execução em segundo plano</string>
+    <string name="airplay_open_app">Abrir a app AirPlay</string>
+    <string name="airplay_needs_phone">Para alterar isto aqui, execute \"Make it clean\" uma vez na app do telemóvel com o launcher marcado.</string>
+    <string name="app_drawer_title">Todas as apps</string>
 </resources>

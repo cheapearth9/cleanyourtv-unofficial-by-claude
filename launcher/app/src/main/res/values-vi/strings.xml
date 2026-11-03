@@ -125,4 +125,10 @@
     <string name="clear_all">Xóa tất cả</string>
     <string name="clear_all_done">Đã đóng ứng dụng nền: còn trống %1$d MB (+%2$d MB)</string>
     <string name="clear_all_nothing">Không có gì để đóng: còn trống %1$d MB</string>
+    <string name="airplay_settings">Cài đặt AirPlay</string>
+    <string name="airplay_boot">Khởi động cùng TV</string>
+    <string name="airplay_background">Tiếp tục chạy nền</string>
+    <string name="airplay_open_app">Mở ứng dụng AirPlay</string>
+    <string name="airplay_needs_phone">Để đổi các mục này tại đây, hãy chạy \"Make it clean\" một lần từ ứng dụng trên điện thoại với launcher được chọn.</string>
+    <string name="app_drawer_title">Tất cả ứng dụng</string>
 </resources>

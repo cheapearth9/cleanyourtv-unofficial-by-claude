@@ -78,8 +78,19 @@ public final class AirPlay {
         }
         sh.run("settings put global " + SETTING + " 1 2>&1", 20000);
         if (!enabled(sh)) throw new CleanException("The AirPlay receiver is installed, but the TV did not accept the launcher setting.");
+        grantSwitchPermission(sh);
         if (restartLauncher) restartLauncher(sh);
         return line;
+    }
+
+    /**
+     * The launcher's AirPlay on/off switch changes the receiver's settings through a DUMP-protected broadcast. DUMP is a
+     * development permission, so only "pm grant" can give it; without it the switch can still turn AirPlay on, not off.
+     */
+    private static void grantSwitchPermission(TvShell sh) throws IOException {
+        String own = Guards.OUR_LAUNCHER;
+        if (!sh.run("pm list packages " + own + " 2>&1", 40000).contains("package:" + own)) return;
+        sh.run("pm grant " + own + " android.permission.DUMP 2>/dev/null; true", 30000);
     }
 
     /** The launcher builds its top bar when it starts: restart it (only if ours is installed) so a changed button shows. */

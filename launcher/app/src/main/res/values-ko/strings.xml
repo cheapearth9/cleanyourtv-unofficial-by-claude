@@ -150,4 +150,10 @@
     <string name="clear_all">모두 지우기</string>
     <string name="clear_all_done">백그라운드 앱을 정리했습니다: %1$d MB 사용 가능 (+%2$d MB)</string>
     <string name="clear_all_nothing">정리할 항목 없음: %1$d MB 사용 가능</string>
+    <string name="airplay_settings">AirPlay 설정</string>
+    <string name="airplay_boot">TV와 함께 시작</string>
+    <string name="airplay_background">백그라운드에서 계속 실행</string>
+    <string name="airplay_open_app">AirPlay 앱 열기</string>
+    <string name="airplay_needs_phone">여기서 바꾸려면 휴대폰 앱에서 런처를 선택하고 \"Make it clean\"을 한 번 실행하세요.</string>
+    <string name="app_drawer_title">모든 앱</string>
 </resources>

@@ -98,4 +98,10 @@
     <string name="clear_all">Tout fermer</string>
     <string name="clear_all_done">Applications en arrière-plan fermées : %1$d Mo libres (+%2$d Mo)</string>
     <string name="clear_all_nothing">Rien à fermer : %1$d Mo libres</string>
+    <string name="airplay_settings">Réglages AirPlay</string>
+    <string name="airplay_boot">Démarrer avec la TV</string>
+    <string name="airplay_background">Rester actif en arrière-plan</string>
+    <string name="airplay_open_app">Ouvrir l\'app AirPlay</string>
+    <string name="airplay_needs_phone">Pour modifier cela ici, lancez une fois \"Make it clean\" depuis l\'app du téléphone avec le launcher coché.</string>
+    <string name="app_drawer_title">Toutes les apps</string>
 </resources>

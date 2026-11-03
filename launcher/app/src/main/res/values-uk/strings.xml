@@ -153,4 +153,10 @@
     <string name="clear_all">Очистити все</string>
     <string name="clear_all_done">Фонові додатки закрито: вільно %1$d МБ (+%2$d МБ)</string>
     <string name="clear_all_nothing">Нічого закривати: вільно %1$d МБ</string>
+    <string name="airplay_settings">Налаштування AirPlay</string>
+    <string name="airplay_boot">Запускати разом із ТБ</string>
+    <string name="airplay_background">Працювати у фоні</string>
+    <string name="airplay_open_app">Відкрити застосунок AirPlay</string>
+    <string name="airplay_needs_phone">Щоб змінювати це тут, один раз запустіть \"Make it clean\" у застосунку на телефоні з позначеним лаунчером.</string>
+    <string name="app_drawer_title">Усі застосунки</string>
 </resources>

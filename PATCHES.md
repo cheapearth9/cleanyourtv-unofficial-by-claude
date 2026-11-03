@@ -73,3 +73,14 @@ The phone app (`phone/`) is new code. Its debloat logic is a port of upstream `t
 * the "Clear all" texts (the pill and its two messages) are translated into all 28 languages the launcher ships, not only English;
   the name "AirPlay" stays as is. While the AirPlay pill is on, the AirPlay receiver's own tile leaves the app grid (it is
   reached from the top bar, like a `top_bar_apps` app); with the pill off it is an ordinary app tile again.
+* the AirPlay pill now has an on/off switch to its right (`SwitchView`: a canvas-drawn pill, blue with the knob right = on, gray
+  with the knob left = off; no bitmaps, animates only while it flips) and an "AirPlay settings" pill after that
+  (`AirPlaySettingsDialog`: "Start with the TV", "Keep running in the background", "Open the AirPlay app"). The receiver has no
+  stop command, so `AirPlayControl` drives it the only ways it offers: its `SettingsReceiver` broadcast (guarded by DUMP) sets
+  `boot_auto_start`, `auto_start` and `run_in_background`; on = settings on plus its `BootReceiver` start broadcast; off =
+  settings off, then the receiver is opened for about a second and the launcher brought back, which makes it stop itself.
+  The launcher declares `android.permission.DUMP`, a development permission that only `pm grant` can give: the phone app grants it
+  when it installs the launcher and when AirPlay is switched on. Without it the switch can turn AirPlay on but not off.
+* the bottom "Apps" button now opens an app drawer (`AppDrawerDialog`: one full-screen `GridView` of every launchable app,
+  recycled cells, a 30-icon cache, list loaded off the main thread and everything released on close). The 9-dots button in the top
+  bar still opens the app library. New texts are translated into all 28 languages.

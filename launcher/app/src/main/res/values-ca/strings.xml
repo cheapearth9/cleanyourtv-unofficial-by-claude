@@ -112,4 +112,10 @@
     <string name="clear_all">Neteja-ho tot</string>
     <string name="clear_all_done">Aplicacions en segon pla tancades: %1$d MB lliures (+%2$d MB)</string>
     <string name="clear_all_nothing">No hi ha res per netejar: %1$d MB lliures</string>
+    <string name="airplay_settings">Configuració d\'AirPlay</string>
+    <string name="airplay_boot">Inicia amb el televisor</string>
+    <string name="airplay_background">Mantén-ho en execució en segon pla</string>
+    <string name="airplay_open_app">Obre l\'aplicació AirPlay</string>
+    <string name="airplay_needs_phone">Per canviar-ho des d\'aquí, executa una vegada \"Make it clean\" des de l\'aplicació del telèfon amb el llançador marcat.</string>
+    <string name="app_drawer_title">Totes les aplicacions</string>
 </resources>

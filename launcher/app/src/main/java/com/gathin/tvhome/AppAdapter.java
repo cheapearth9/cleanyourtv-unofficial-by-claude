@@ -57,6 +57,8 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         boolean onTileVerticalKey(int position, int keyCode);
 
         void onLibraryRequested();
+        /** The bottom Apps button: opens the plain app drawer. */
+        void onDrawerRequested();
         void onLibraryFocused();
         /** Hold OK on a tile: the activity shows the tile menu (move, remove from Home, app info). */
         void onTileLongPress(int position, View card);
@@ -401,7 +403,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         if (viewType == 1) {
             View row = LayoutInflater.from(ctx).inflate(R.layout.row_app_library, parent, false);
             View button = row.findViewById(R.id.btnLibrary);
-            button.setOnClickListener(v -> listener.onLibraryRequested());
+            button.setOnClickListener(v -> listener.onDrawerRequested());
             button.setOnFocusChangeListener((v, focused) -> { if (focused) listener.onLibraryFocused(); });
             button.setOnKeyListener((v, key, event) -> {
                 if (event.getAction() != KeyEvent.ACTION_DOWN) return false;

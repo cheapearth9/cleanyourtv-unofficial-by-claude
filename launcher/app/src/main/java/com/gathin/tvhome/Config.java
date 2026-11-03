@@ -701,7 +701,7 @@ final class Config {
     }
 
     /** The AirPlay receiver app the phone app installs (the AirPlay pill opens it). */
-    static final String AIRPLAY_PACKAGE = "io.github.jqssun.airplay";
+    static final String AIRPLAY_PACKAGE = AirPlayControl.PKG;
 
     private static boolean airplaySetting(Context ctx) {
         try {
