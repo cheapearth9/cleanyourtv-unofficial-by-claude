@@ -121,4 +121,13 @@
     <string name="race_race">Lopp</string>
     <string name="last_opened">Senast öppnad %1$s</string>
     <string name="game_live">Direkt nu</string>
+    <string name="clear_all">Rensa alla</string>
+    <string name="clear_all_done">Bakgrundsappar stängda: %1$d MB ledigt (+%2$d MB)</string>
+    <string name="clear_all_nothing">Inget att stänga: %1$d MB ledigt</string>
+    <string name="airplay_settings">AirPlay-inställningar</string>
+    <string name="airplay_boot">Starta med tv:n</string>
+    <string name="airplay_background">Fortsätt köra i bakgrunden</string>
+    <string name="airplay_open_app">Öppna AirPlay-appen</string>
+    <string name="airplay_needs_phone">För att ändra detta här, kör \"Make it clean\" en gång i telefonappen med launchern ikryssad.</string>
+    <string name="app_drawer_title">Alla appar</string>
 </resources>

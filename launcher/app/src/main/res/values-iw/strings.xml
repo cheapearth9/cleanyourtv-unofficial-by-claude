@@ -148,4 +148,13 @@
     <string name="race_countdown_days">%1$d ימ׳ %2$d שע׳</string>
     <string name="last_opened">פתיחה אחרונה: %1$s</string>
     <string name="game_live">בשידור חי עכשיו</string>
+    <string name="clear_all">נקה הכול</string>
+    <string name="clear_all_done">אפליקציות הרקע נסגרו: %1$d MB פנויים (+%2$d MB)</string>
+    <string name="clear_all_nothing">אין מה לנקות: %1$d MB פנויים</string>
+    <string name="airplay_settings">הגדרות AirPlay</string>
+    <string name="airplay_boot">הפעלה עם הטלוויזיה</string>
+    <string name="airplay_background">המשך הפעלה ברקע</string>
+    <string name="airplay_open_app">פתיחת אפליקציית AirPlay</string>
+    <string name="airplay_needs_phone">כדי לשנות זאת מכאן, הריצו פעם אחת \"Make it clean\" באפליקציית הטלפון כשהלאנצ\'ר מסומן.</string>
+    <string name="app_drawer_title">כל האפליקציות</string>
 </resources>

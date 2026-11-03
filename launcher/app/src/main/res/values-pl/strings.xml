@@ -96,4 +96,13 @@
     </plurals>
     <string name="greeting_with_name">%1$s, %2$s</string>
     <string name="game_live">Na żywo</string>
+    <string name="clear_all">Wyczyść wszystko</string>
+    <string name="clear_all_done">Zamknięto aplikacje w tle: wolne %1$d MB (+%2$d MB)</string>
+    <string name="clear_all_nothing">Nie ma czego zamykać: wolne %1$d MB</string>
+    <string name="airplay_settings">Ustawienia AirPlay</string>
+    <string name="airplay_boot">Uruchamiaj z telewizorem</string>
+    <string name="airplay_background">Działaj w tle</string>
+    <string name="airplay_open_app">Otwórz aplikację AirPlay</string>
+    <string name="airplay_needs_phone">Aby zmieniać to tutaj, uruchom raz \"Make it clean\" w aplikacji na telefonie z zaznaczonym launcherem.</string>
+    <string name="app_drawer_title">Wszystkie aplikacje</string>
 </resources>

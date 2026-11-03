@@ -145,4 +145,13 @@
     <string name="race_countdown_days">%1$dg %2$dh</string>
     <string name="last_opened">Ultima apertura: %1$s</string>
     <string name="game_live">In diretta</string>
+    <string name="clear_all">Chiudi tutto</string>
+    <string name="clear_all_done">App in background chiuse: %1$d MB liberi (+%2$d MB)</string>
+    <string name="clear_all_nothing">Niente da chiudere: %1$d MB liberi</string>
+    <string name="airplay_settings">Impostazioni AirPlay</string>
+    <string name="airplay_boot">Avvia con la TV</string>
+    <string name="airplay_background">Resta attivo in background</string>
+    <string name="airplay_open_app">Apri l\'app AirPlay</string>
+    <string name="airplay_needs_phone">Per modificarle da qui, esegui una volta \"Make it clean\" dall\'app del telefono con il launcher selezionato.</string>
+    <string name="app_drawer_title">Tutte le app</string>
 </resources>

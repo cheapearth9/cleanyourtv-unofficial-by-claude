@@ -1392,7 +1392,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             // The App library pill sits in the grid but is no tile: OK ends the mode (saving the order) and opens it.
             if (event.getAction() == KeyEvent.ACTION_UP && !event.isCanceled()) {
                 endReorder();
-                onLibraryRequested();
+                onDrawerRequested();
             }
             return true;
         }
@@ -2491,16 +2491,14 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         topAppButtons.add(button);
     }
 
-    private static final String AIRPLAY_PACKAGE = "io.github.jqssun.airplay";
-
     /**
      * The "AirPlay" pill, left of the network pill like a top_bar_apps button. It opens the AirPlay receiver app and is
      * not added while that app is not installed or is disabled, so with the setting on but no receiver there is nothing to press.
      */
     private void addAirplayButton(boolean iconOnly) {
         PackageManager pm = getPackageManager();
-        Intent launch = pm.getLeanbackLaunchIntentForPackage(AIRPLAY_PACKAGE);
-        if (launch == null) launch = pm.getLaunchIntentForPackage(AIRPLAY_PACKAGE);
+        Intent launch = pm.getLeanbackLaunchIntentForPackage(Config.AIRPLAY_PACKAGE);
+        if (launch == null) launch = pm.getLaunchIntentForPackage(Config.AIRPLAY_PACKAGE);
         if (launch == null) return;
         ViewGroup bar = findViewById(R.id.topButtons);
         TextView button = (TextView) getLayoutInflater().inflate(R.layout.top_airplay_button, bar, false);
@@ -2508,8 +2506,70 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         Intent target = launch;
         button.setOnClickListener(v -> open(new Intent(target)));
         if (iconOnly) makeIconOnly(button);
-        bar.addView(button, bar.indexOfChild(getResources().getBoolean(R.bool.rtl_menu_bar) ? btnVpn : btnWifi));
+        boolean rtl = getResources().getBoolean(R.bool.rtl_menu_bar);
+        bar.addView(button, bar.indexOfChild(rtl ? btnVpn : btnWifi));
         topAppButtons.add(button);
+
+        // The on/off switch: knob right and blue = the AirPlay server runs, knob left and gray = it is off.
+        SwitchView toggle = new SwitchView(this, animations);
+        toggle.setId(View.generateViewId());
+        toggle.setContentDescription(getString(R.string.airplay));
+        toggle.setChecked(AirPlayControl.remembered(this), false);
+        LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(Math.round(52 * density), Math.round(32 * density));
+        tlp.gravity = Gravity.CENTER_VERTICAL;
+        tlp.setMarginStart(Math.round(10 * density));
+        tlp.setMarginEnd(Math.round(6 * density));
+        toggle.setOnChange(on -> {
+            toggle.setEnabled(false);
+            AirPlayControl.apply(this, on, (ok, data) -> {
+                toggle.setEnabled(true);
+                if (ok) {
+                    AirPlayControl.remember(this, on);
+                } else {
+                    toggle.setChecked(!on, false);
+                    Toast.makeText(this, R.string.airplay_needs_phone, Toast.LENGTH_LONG).show();
+                }
+            });
+        });
+        bar.addView(toggle, bar.indexOfChild(rtl ? btnVpn : btnWifi), tlp);
+        topAppButtons.add(toggle);
+        if (AirPlayControl.allowed(this)) {
+            // Show what the receiver really does, not only what we last asked for.
+            AirPlayControl.readEnabled(this, (ok, data) -> {
+                if (!ok || !toggle.isEnabled()) return;
+                boolean actual = "true".equals(data);
+                toggle.setChecked(actual, false);
+                AirPlayControl.remember(this, actual);
+            });
+        }
+
+        TextView settings = (TextView) getLayoutInflater().inflate(R.layout.top_airplay_settings_button, bar, false);
+        settings.setId(View.generateViewId());
+        settings.setOnClickListener(v -> AirPlaySettingsDialog.show(this, () -> {
+            if (AirPlayControl.allowed(this)) {
+                AirPlayControl.readEnabled(this, (ok, data) -> {
+                    if (ok) toggle.setChecked("true".equals(data), false);
+                });
+            }
+        }));
+        if (iconOnly) makeIconOnly(settings);
+        bar.addView(settings, bar.indexOfChild(rtl ? btnVpn : btnWifi));
+        topAppButtons.add(settings);
+    }
+
+    private AppDrawerDialog appDrawer;
+
+    /** The bottom Apps button: a plain full-screen drawer of every launchable app. */
+    @Override
+    public void onDrawerRequested() {
+        if (appDrawer != null) appDrawer.close();
+        if (openPopup != null) openPopup.dismiss();
+        appDrawer = new AppDrawerDialog(this, () -> {
+            appDrawer = null;
+            View button = findViewById(R.id.btnLibrary);
+            if (button != null) button.requestFocus();
+        });
+        appDrawer.show();
     }
 
     @Override public void onLibraryUp() {

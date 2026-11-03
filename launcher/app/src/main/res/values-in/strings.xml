@@ -110,4 +110,13 @@
     <string name="race_finished">Bendera finis</string>
     <string name="last_opened">Terakhir dibuka %1$s</string>
     <string name="game_live">Langsung sekarang</string>
+    <string name="clear_all">Hapus semua</string>
+    <string name="clear_all_done">Aplikasi latar belakang ditutup: %1$d MB tersedia (+%2$d MB)</string>
+    <string name="clear_all_nothing">Tidak ada yang perlu ditutup: %1$d MB tersedia</string>
+    <string name="airplay_settings">Setelan AirPlay</string>
+    <string name="airplay_boot">Mulai bersama TV</string>
+    <string name="airplay_background">Tetap berjalan di latar belakang</string>
+    <string name="airplay_open_app">Buka aplikasi AirPlay</string>
+    <string name="airplay_needs_phone">Untuk mengubahnya dari sini, jalankan \"Make it clean\" sekali dari aplikasi ponsel dengan launcher dicentang.</string>
+    <string name="app_drawer_title">Semua aplikasi</string>
 </resources>

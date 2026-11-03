@@ -5,9 +5,9 @@
     <string name="wifi">Wi-Fi</string>
     <string name="settings">Settings</string>
     <string name="airplay" translatable="false">AirPlay</string>
-    <string name="clear_all" translatable="false">Clear all</string>
-    <string name="clear_all_done" translatable="false">Background apps cleared: %1$d MB free (+%2$d MB)</string>
-    <string name="clear_all_nothing" translatable="false">Nothing to clear: %1$d MB free</string>
+    <string name="clear_all">Clear all</string>
+    <string name="clear_all_done">Background apps cleared: %1$d MB free (+%2$d MB)</string>
+    <string name="clear_all_nothing">Nothing to clear: %1$d MB free</string>
     <string name="choose_input">Inputs</string>
     <string name="connected">Connected</string>
     <string name="standby">Standby</string>
@@ -158,4 +158,10 @@
     <string name="last_opened">Last opened %1$s</string>
     <!-- game_day: a game on now, in the race panel. -->
     <string name="game_live">Live now</string>
+    <string name="airplay_settings">AirPlay settings</string>
+    <string name="airplay_boot">Start with the TV</string>
+    <string name="airplay_background">Keep running in the background</string>
+    <string name="airplay_open_app">Open the AirPlay app</string>
+    <string name="airplay_needs_phone">To change these here, run \"Make it clean\" once from the phone app with the launcher ticked.</string>
+    <string name="app_drawer_title">All apps</string>
 </resources>

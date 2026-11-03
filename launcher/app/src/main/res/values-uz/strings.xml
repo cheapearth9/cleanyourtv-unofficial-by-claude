@@ -111,4 +111,13 @@
     <string name="race_finished">Marra</string>
     <string name="last_opened">Oxirgi marta ochilgan: %1$s</string>
     <string name="game_live">Hozir jonli</string>
+    <string name="clear_all">Hammasini tozalash</string>
+    <string name="clear_all_done">Fon ilovalari yopildi: %1$d MB boʻsh (+%2$d MB)</string>
+    <string name="clear_all_nothing">Yopiladigan narsa yoʻq: %1$d MB boʻsh</string>
+    <string name="airplay_settings">AirPlay sozlamalari</string>
+    <string name="airplay_boot">Televizor bilan ishga tushirish</string>
+    <string name="airplay_background">Fonda ishlashda davom etish</string>
+    <string name="airplay_open_app">AirPlay ilovasini ochish</string>
+    <string name="airplay_needs_phone">Buni shu yerda o\'zgartirish uchun telefon ilovasida launcher belgilangan holda \"Make it clean\"ni bir marta ishga tushiring.</string>
+    <string name="app_drawer_title">Barcha ilovalar</string>
 </resources>

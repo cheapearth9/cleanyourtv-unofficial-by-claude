@@ -680,6 +680,9 @@ final class Config {
 
         // The phone app's AirPlay switch is a global setting, so it works whether or not a theme config was pushed.
         airplayButton = airplayButton || airplaySetting(ctx);
+        // With the AirPlay pill on, the receiver is reached from the top bar and leaves the grid, like a top-bar app;
+        // with it off, the receiver is an ordinary app tile again.
+        if (airplayButton && !hidden.contains(AIRPLAY_PACKAGE)) hidden.add(AIRPLAY_PACKAGE);
         return new Config(dock, fillDock, hidden, libraryApps, libraryExcludedApps, liveTv, liveTvAction, liveTvInputId, packageMap(launchActions), packageMap(appLabels),
                 packageMap(appBanners), panelService, panelAction, panelExtra, coocaaSources, inputAction, inputSources, inputUriScheme, Math.max(1, columns),
                 Math.max(0, rowsBelow), animations, advancedEffects, shamsi, greetingName, moduleCards, reducedMotion, bootToLiveTv,
@@ -696,6 +699,9 @@ final class Config {
                 dateBelowClock, vpnPill, locale, powerOnHomeAlways, inputsConnectedOnly,
                 Math.max(0, Math.min(600, openOnStartNetworkWait)), airplayButton, clearAllButton);
     }
+
+    /** The AirPlay receiver app the phone app installs (the AirPlay pill opens it). */
+    static final String AIRPLAY_PACKAGE = AirPlayControl.PKG;
 
     private static boolean airplaySetting(Context ctx) {
         try {

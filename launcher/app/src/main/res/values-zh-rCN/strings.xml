@@ -147,4 +147,13 @@
     <string name="tile_move">移动</string>
     <string name="tile_replace_in_dock">替换为其他应用</string>
     <string name="game_live">直播中</string>
+    <string name="clear_all">全部清除</string>
+    <string name="clear_all_done">已清理后台应用：可用 %1$d MB（+%2$d MB）</string>
+    <string name="clear_all_nothing">没有可清理的内容：可用 %1$d MB</string>
+    <string name="airplay_settings">AirPlay 设置</string>
+    <string name="airplay_boot">随电视启动</string>
+    <string name="airplay_background">在后台持续运行</string>
+    <string name="airplay_open_app">打开 AirPlay 应用</string>
+    <string name="airplay_needs_phone">要在此处更改，请在手机应用中勾选启动器并运行一次“Make it clean”。</string>
+    <string name="app_drawer_title">所有应用</string>
 </resources>

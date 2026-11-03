@@ -76,4 +76,13 @@
     </plurals>
     <string name="greeting_with_name">%1$s, %2$s</string>
     <string name="game_live">Uživo sada</string>
+    <string name="clear_all">Obriši sve</string>
+    <string name="clear_all_done">Pozadinske aplikacije zatvorene: %1$d MB slobodno (+%2$d MB)</string>
+    <string name="clear_all_nothing">Nema šta da se zatvori: %1$d MB slobodno</string>
+    <string name="airplay_settings">AirPlay podešavanja</string>
+    <string name="airplay_boot">Pokreni sa TV-om</string>
+    <string name="airplay_background">Ostani aktivan u pozadini</string>
+    <string name="airplay_open_app">Otvori AirPlay aplikaciju</string>
+    <string name="airplay_needs_phone">Da biste ovo menjali odavde, jednom pokrenite \"Make it clean\" iz aplikacije na telefonu uz označen launcher.</string>
+    <string name="app_drawer_title">Sve aplikacije</string>
 </resources>

@@ -112,4 +112,13 @@
     <string name="race_finished">Ruutulippu</string>
     <string name="last_opened">Viimeksi avattu %1$s</string>
     <string name="game_live">Käynnissä nyt</string>
+    <string name="clear_all">Tyhjennä kaikki</string>
+    <string name="clear_all_done">Taustasovellukset suljettu: %1$d Mt vapaana (+%2$d Mt)</string>
+    <string name="clear_all_nothing">Ei suljettavaa: %1$d Mt vapaana</string>
+    <string name="airplay_settings">AirPlay-asetukset</string>
+    <string name="airplay_boot">Käynnistä television mukana</string>
+    <string name="airplay_background">Pidä käynnissä taustalla</string>
+    <string name="airplay_open_app">Avaa AirPlay-sovellus</string>
+    <string name="airplay_needs_phone">Voit muuttaa näitä tässä ajamalla puhelinsovelluksessa kerran \"Make it clean\" launcher valittuna.</string>
+    <string name="app_drawer_title">Kaikki sovellukset</string>
 </resources>

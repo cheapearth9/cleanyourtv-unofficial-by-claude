@@ -484,6 +484,12 @@ public final class CoreSelfTest {
         // already installed: no download
         String again = AirPlay.apply(a, TvInfo.probe(a), true, mustNotRun, false, log);
         check("1".equals(a.airplaySetting) && again.contains("already installed"), "AirPlay on again: nothing is downloaded twice");
+        a.history.clear();
+        a.installed.add("com.gathin.tvhome");
+        AirPlay.apply(a, TvInfo.probe(a), true, mustNotRun, false, log);
+        boolean granted = false;
+        for (String h : a.history) if (h.contains("pm grant com.gathin.tvhome android.permission.DUMP")) granted = true;
+        check(granted, "AirPlay on: the launcher is given the permission its on/off switch needs");
 
         // off: only the setting changes; the app stays
         a.ownInstalled = true;

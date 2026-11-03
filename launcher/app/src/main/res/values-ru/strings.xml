@@ -151,4 +151,13 @@
          last opened, e.g. "5 minutes ago" or "yesterday, 9:40 pm". -->
     <string name="last_opened">Последний запуск: %1$s</string>
     <string name="game_live">Сейчас в эфире</string>
+    <string name="clear_all">Очистить всё</string>
+    <string name="clear_all_done">Фоновые приложения закрыты: свободно %1$d МБ (+%2$d МБ)</string>
+    <string name="clear_all_nothing">Нечего закрывать: свободно %1$d МБ</string>
+    <string name="airplay_settings">Настройки AirPlay</string>
+    <string name="airplay_boot">Запускать вместе с ТВ</string>
+    <string name="airplay_background">Работать в фоне</string>
+    <string name="airplay_open_app">Открыть приложение AirPlay</string>
+    <string name="airplay_needs_phone">Чтобы менять это здесь, один раз запустите \"Make it clean\" в приложении на телефоне с отмеченным лаунчером.</string>
+    <string name="app_drawer_title">Все приложения</string>
 </resources>
