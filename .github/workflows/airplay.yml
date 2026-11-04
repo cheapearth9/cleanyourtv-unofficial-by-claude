@@ -1,0 +1,53 @@
+name: build-airplay
+# Builds the AirPlay receiver in /airplay (a GPL-3.0 fork of jqssun/android-airplay-server, see airplay/README.md) and publishes
+# it as the rolling release "airplay-latest", which is where the phone app downloads it from.
+# Separate from build-apk on purpose: this build is slow (it compiles OpenSSL and FFmpeg for each CPU type) and needs a newer
+# toolchain, and it must never be able to break the phone app's own build.
+on:
+  push:
+    paths:
+      - 'airplay/**'
+      - '.gitmodules'
+      - '.github/workflows/airplay.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+      - name: Android SDK pieces the receiver needs
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-37" "ndk;27.0.12077973" "cmake;3.22.1" || true
+      - name: Build
+        working-directory: airplay
+        run: |
+          export SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct)
+          bash ./gradlew assembleRelease --no-daemon --console=plain --stacktrace
+      - name: Name the APK
+        run: cp airplay/app/build/outputs/apk/release/app-release.apk airplay.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: airplay-apk
+          path: airplay.apk
+      - name: Publish the rolling release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete airplay-latest --cleanup-tag --yes || true
+          gh release create airplay-latest airplay.apk \
+            --target "$GITHUB_SHA" --prerelease \
+            --title "AirPlay receiver (rolling build)" \
+            --notes "Built from commit $GITHUB_SHA by the build-airplay workflow. The cleanyourtv phone app downloads this file. Source and license: /airplay (GPL-3.0)."

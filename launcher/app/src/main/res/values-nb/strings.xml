@@ -115,9 +115,10 @@
     <string name="clear_all_done">Bakgrunnsapper lukket: %1$d MB ledig (+%2$d MB)</string>
     <string name="clear_all_nothing">Ingenting å lukke: %1$d MB ledig</string>
     <string name="airplay_settings">AirPlay-innstillinger</string>
-    <string name="airplay_boot">Start sammen med TV-en</string>
-    <string name="airplay_background">Fortsett å kjøre i bakgrunnen</string>
     <string name="airplay_open_app">Åpne AirPlay-appen</string>
     <string name="airplay_needs_phone">For å endre dette her, kjør \"Make it clean\" én gang fra telefonappen med launcheren avmerket.</string>
     <string name="app_drawer_title">Alle apper</string>
+    <string name="airplay_logs">Logger</string>
+    <string name="airplay_logs_empty">Ingen loggoppføringer ennå</string>
+    <string name="airplay_logs_clear">Tøm</string>
 </resources>

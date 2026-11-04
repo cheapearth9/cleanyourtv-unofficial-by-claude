@@ -159,9 +159,10 @@
     <!-- game_day: a game on now, in the race panel. -->
     <string name="game_live">Live now</string>
     <string name="airplay_settings">AirPlay settings</string>
-    <string name="airplay_boot">Start with the TV</string>
-    <string name="airplay_background">Keep running in the background</string>
     <string name="airplay_open_app">Open the AirPlay app</string>
     <string name="airplay_needs_phone">To change these here, run \"Make it clean\" once from the phone app with the launcher ticked.</string>
     <string name="app_drawer_title">All apps</string>
+    <string name="airplay_logs">Logs</string>
+    <string name="airplay_logs_empty">No log lines yet</string>
+    <string name="airplay_logs_clear">Clear</string>
 </resources>

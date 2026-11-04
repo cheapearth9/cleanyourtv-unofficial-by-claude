@@ -489,9 +489,10 @@ public class MainActivity extends Activity {
             }
         });
         ac.addView(airplayBox);
-        ac.addView(dim("Lets iPhones and Macs mirror their screen to this TV. This phone downloads the free, open-source AirPlay Receiver app "
-            + "(github.com/jqssun/android-airplay-server, GPL-3.0) and installs it on the TV, then an AirPlay button appears on the launcher, "
-            + "left of Wi-Fi, and opens it. Needs internet on this phone. Untick it and press Make it clean to hide the button again "
+        ac.addView(dim("Lets iPhones and Macs mirror their screen to this TV. This phone downloads the free, open-source AirPlay receiver "
+            + "(this project's fork of github.com/jqssun/android-airplay-server, GPL-3.0) and installs it on the TV, then an AirPlay button, "
+            + "an on/off switch and an AirPlay settings button appear on the launcher, left of Wi-Fi. If the original receiver is on the TV it "
+            + "is replaced. Needs internet on this phone. Untick it and press Make it clean to hide the buttons again "
             + "(the receiver app stays installed; remove it in the Apps list)."));
         root.addView(ac);
         runButton = button("Make it clean", true);

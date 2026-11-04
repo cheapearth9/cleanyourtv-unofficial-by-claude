@@ -84,3 +84,17 @@ The phone app (`phone/`) is new code. Its debloat logic is a port of upstream `t
 * the bottom "Apps" button now opens an app drawer (`AppDrawerDialog`: one full-screen `GridView` of every launchable app,
   recycled cells, a 30-icon cache, list loaded off the main thread and everything released on close). The 9-dots button in the top
   bar still opens the app library. New texts are translated into all 28 languages.
+* the AirPlay receiver is now this repository's own fork (`/airplay`, GPL-3.0, from jqssun/android-airplay-server at `a46cca0`;
+  credited in README.md and airplay/README.md), application id `tv.clean.airplay`. It adds a control door (`SettingsReceiver`:
+  START, STOP, STATUS, LOGS, CLEAR_LOGS besides the original SET_SETTING / LIST_SETTINGS), protected by its own development
+  permission `tv.clean.airplay.permission.CONTROL`, so the launcher's AirPlay switch starts and stops the server in the
+  background and **nothing flashes on screen any more** (this replaces the earlier "open the receiver for a second" trick and
+  the `DUMP` permission). The launcher declares that permission; the phone app grants it with `pm grant` when it installs the
+  launcher or switches AirPlay on, and removes the original `io.github.jqssun.airplay` receiver when it installs the fork.
+  The phone app downloads the fork from this repo's rolling release `airplay-latest`, published by the `build-airplay` workflow
+  (`.github/workflows/airplay.yml`, separate from `build-apk` because it is slow and needs JDK 21 / AGP 9 / NDK 27 and four git
+  submodules listed in `.gitmodules`).
+* "AirPlay settings" now lists every setting of the receiver's own Settings screen (Server, Connection, Display, Decode,
+  Developer, in the same order, labelled with the receiver's own texts read from its resources by name, so they match the
+  original app; the Developer rows appear when "Developer options" is on), and at the bottom "Open the AirPlay app" and "Logs"
+  (the service's log, with Clear). The main switch shows whether the server really runs (STATUS).

@@ -683,6 +683,7 @@ final class Config {
         // With the AirPlay pill on, the receiver is reached from the top bar and leaves the grid, like a top-bar app;
         // with it off, the receiver is an ordinary app tile again.
         if (airplayButton && !hidden.contains(AIRPLAY_PACKAGE)) hidden.add(AIRPLAY_PACKAGE);
+        if (airplayButton && !hidden.contains(AirPlayControl.LEGACY_PKG)) hidden.add(AirPlayControl.LEGACY_PKG);
         return new Config(dock, fillDock, hidden, libraryApps, libraryExcludedApps, liveTv, liveTvAction, liveTvInputId, packageMap(launchActions), packageMap(appLabels),
                 packageMap(appBanners), panelService, panelAction, panelExtra, coocaaSources, inputAction, inputSources, inputUriScheme, Math.max(1, columns),
                 Math.max(0, rowsBelow), animations, advancedEffects, shamsi, greetingName, moduleCards, reducedMotion, bootToLiveTv,

@@ -30,6 +30,24 @@ Or locally with JDK 17 + Android SDK 34: `./gradlew :phone:assembleRelease`, the
 removes the new launcher. The record lives on the TV, so any phone can do it. With no record there is an
 "enable all disabled apps" fallback.
 
+## AirPlay (optional)
+
+Tick **AirPlay** in the phone app and the TV can receive screen mirroring, video and music from iPhones, iPads and Macs.
+The launcher gets an **AirPlay** button, an **on/off switch** (knob right and blue = on, left and gray = off), an
+**AirPlay settings** button (every setting of the receiver, plus its log at the bottom) and, at the bottom of the home
+screen, an app drawer. Switching it on or off starts or stops the server in the background: no screen flashes.
+
+The receiver is the app in [`airplay/`](airplay/): **a fork of
+[jqssun/android-airplay-server](https://github.com/jqssun/android-airplay-server) (GPL-3.0)**, which is itself built on
+[UxPlay](https://github.com/FDH2/UxPlay) (GPL-3.0), [libplist](https://github.com/libimobiledevice/libplist),
+[OpenSSL](https://www.openssl.org/), [FFmpeg](https://ffmpeg.org/) and [Oboe](https://github.com/google/oboe). All credit for
+the receiver goes to **jqssun** and those projects; the fork only adds a control door so the launcher can start, stop and
+configure it without opening it (see [`airplay/README.md`](airplay/README.md) for exactly what changed). It has its own
+application id (`tv.clean.airplay`), so it replaces the original app on the TV instead of clashing with it.
+
+It is built by its own workflow (**build-airplay**, slow: it compiles OpenSSL and FFmpeg) and published as the rolling release
+`airplay-latest`, which the phone app downloads when AirPlay is ticked. The first time, run **build-airplay** once.
+
 ## Safety rules (same as upstream, plus a few)
 
 Never disabled: Android core and TV middleware, HDMI/AV/tuner drivers (apps holding `TV_INPUT_HARDWARE`), the app that
@@ -52,5 +70,8 @@ API 24 platform jar; the patched launcher has no unguarded Android 8+ API use. R
 Not verified here (no Android SDK or real TV in the sandbox): the Gradle build itself, the UI on a physical phone, and the
 launcher running on a physical Android 7 TV. Expect to fix small things on first real run; tell me what the log says.
 
-Licence: MIT. Contains code from cleanyourtv (MIT, © 2026 Gathin), see `LICENSE-cleanyourtv-MIT`. The launcher font is OFL
-(`launcher/FONT-LICENSE-OFL.txt`). Not affiliated with the cleanyourtv author.
+Licence: MIT for the phone app and the launcher. Contains code from cleanyourtv (MIT, © 2026 Gathin), see
+`LICENSE-cleanyourtv-MIT`. The launcher font is OFL (`launcher/FONT-LICENSE-OFL.txt`). The AirPlay receiver in `airplay/` is a
+separate program under **GPL-3.0** (`airplay/LICENSE`, © jqssun and the UxPlay authors): the phone app and the launcher
+only talk to it through Android broadcasts and install it as its own APK, they do not contain its code. Not affiliated with the
+cleanyourtv author or with jqssun.

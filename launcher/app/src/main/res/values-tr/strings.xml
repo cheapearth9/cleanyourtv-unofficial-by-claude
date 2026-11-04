@@ -98,9 +98,10 @@
     <string name="clear_all_done">Arka plan uygulamaları kapatıldı: %1$d MB boş (+%2$d MB)</string>
     <string name="clear_all_nothing">Kapatılacak bir şey yok: %1$d MB boş</string>
     <string name="airplay_settings">AirPlay ayarları</string>
-    <string name="airplay_boot">TV ile birlikte başlat</string>
-    <string name="airplay_background">Arka planda çalışmaya devam et</string>
     <string name="airplay_open_app">AirPlay uygulamasını aç</string>
     <string name="airplay_needs_phone">Bunları buradan değiştirmek için telefon uygulamasında başlatıcı işaretliyken bir kez \"Make it clean\" çalıştırın.</string>
     <string name="app_drawer_title">Tüm uygulamalar</string>
+    <string name="airplay_logs">Günlükler</string>
+    <string name="airplay_logs_empty">Henüz günlük satırı yok</string>
+    <string name="airplay_logs_clear">Temizle</string>
 </resources>
