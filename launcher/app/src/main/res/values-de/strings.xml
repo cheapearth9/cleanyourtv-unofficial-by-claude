@@ -75,7 +75,6 @@
     <string name="clear_all_done">Hintergrund-Apps beendet: %1$d MB frei (+%2$d MB)</string>
     <string name="clear_all_nothing">Nichts zu beenden: %1$d MB frei</string>
     <string name="airplay_settings">AirPlay-Einstellungen</string>
-    <string name="airplay_open_app">AirPlay-App öffnen</string>
     <string name="airplay_needs_phone">Um das hier zu ändern, einmal \"Make it clean\" in der Handy-App mit angehaktem Launcher ausführen.</string>
     <string name="app_drawer_title">Alle Apps</string>
     <string name="airplay_logs">Protokolle</string>

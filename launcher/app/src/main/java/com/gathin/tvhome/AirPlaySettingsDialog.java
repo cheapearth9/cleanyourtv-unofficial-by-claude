@@ -162,19 +162,6 @@ final class AirPlaySettingsDialog {
         } else {
             addSettings();
         }
-        addTextRow("open_app", a.getString(R.string.airplay_open_app), null, null, v -> {
-            Intent i = AirPlayControl.openIntent(a);
-            if (i == null) {
-                Toast.makeText(a, R.string.not_available, Toast.LENGTH_SHORT).show();
-                return;
-            }
-            dialog.dismiss();
-            try {
-                a.startActivity(i);
-            } catch (RuntimeException e) {
-                Toast.makeText(a, R.string.not_available, Toast.LENGTH_SHORT).show();
-            }
-        });
         // The log: last, at the bottom of the menu.
         addTextRow("logs", a.getString(R.string.airplay_logs), null, null, v -> showLogs());
         restoreFocus(scrollY);

@@ -103,7 +103,6 @@
     <string name="clear_all_done">ব্যাকগ্রাউন্ড অ্যাপ বন্ধ করা হয়েছে: %1$d MB ফাঁকা (+%2$d MB)</string>
     <string name="clear_all_nothing">বন্ধ করার কিছু নেই: %1$d MB ফাঁকা</string>
     <string name="airplay_settings">AirPlay সেটিংস</string>
-    <string name="airplay_open_app">AirPlay অ্যাপ খুলুন</string>
     <string name="airplay_needs_phone">এখান থেকে বদলাতে ফোন অ্যাপে লঞ্চার টিক দিয়ে একবার \"Make it clean\" চালান।</string>
     <string name="app_drawer_title">সব অ্যাপ</string>
     <string name="airplay_logs">লগ</string>

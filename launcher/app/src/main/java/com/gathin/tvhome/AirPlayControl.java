@@ -154,14 +154,6 @@ final class AirPlayControl {
         });
     }
 
-    /** The intent that opens the receiver's own screen, or null when it is not installed or is disabled. */
-    static Intent openIntent(Context c) {
-        PackageManager pm = c.getPackageManager();
-        Intent i = pm.getLeanbackLaunchIntentForPackage(PKG);
-        if (i == null) i = pm.getLaunchIntentForPackage(PKG);
-        return i == null ? null : i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-    }
-
     /**
      * A string of the receiver (its own English texts: the settings are labelled exactly as in the original app), or null.
      * Looked up by name in the receiver's resources, so a text the receiver renames or drops never breaks the launcher.

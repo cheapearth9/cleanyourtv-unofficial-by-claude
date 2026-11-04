@@ -2492,53 +2492,53 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     }
 
     /**
-     * The "AirPlay" pill, left of the network pill like a top_bar_apps button. It opens the AirPlay receiver app and is
-     * not added while that app is not installed or is disabled, so with the setting on but no receiver there is nothing to press.
+     * The "AirPlay" pill, left of the network pill: ONE button with the on/off switch drawn inside it. Pressing it turns the
+     * AirPlay server on or off (knob right and blue = on, left and gray = off); it never opens the receiver app (that is reached
+     * only through a Home shortcut added from the 9-dots library). Not added while the receiver is not installed or is disabled,
+     * so with the setting on but no receiver there is nothing to press.
      */
     private void addAirplayButton(boolean iconOnly) {
-        PackageManager pm = getPackageManager();
-        Intent launch = pm.getLeanbackLaunchIntentForPackage(Config.AIRPLAY_PACKAGE);
-        if (launch == null) launch = pm.getLaunchIntentForPackage(Config.AIRPLAY_PACKAGE);
-        if (launch == null) return;
+        if (getPackageManager().getLaunchIntentForPackage(Config.AIRPLAY_PACKAGE) == null
+                && getPackageManager().getLeanbackLaunchIntentForPackage(Config.AIRPLAY_PACKAGE) == null) return;
         ViewGroup bar = findViewById(R.id.topButtons);
         TextView button = (TextView) getLayoutInflater().inflate(R.layout.top_airplay_button, bar, false);
         button.setId(View.generateViewId());
-        Intent target = launch;
-        button.setOnClickListener(v -> open(new Intent(target)));
-        if (iconOnly) makeIconOnly(button);
-        boolean rtl = getResources().getBoolean(R.bool.rtl_menu_bar);
-        bar.addView(button, bar.indexOfChild(rtl ? btnVpn : btnWifi));
-        topAppButtons.add(button);
-
-        // The on/off switch: knob right and blue = the AirPlay server runs, knob left and gray = it is off.
-        SwitchView toggle = new SwitchView(this, animations);
-        toggle.setId(View.generateViewId());
-        toggle.setContentDescription(getString(R.string.airplay));
-        toggle.setChecked(AirPlayControl.remembered(this), false);
-        LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(Math.round(52 * density), Math.round(32 * density));
-        tlp.gravity = Gravity.CENTER_VERTICAL;
-        tlp.setMarginStart(Math.round(10 * density));
-        tlp.setMarginEnd(Math.round(6 * density));
-        toggle.setOnChange(on -> {
-            toggle.setEnabled(false);
+        SwitchDrawable toggle = new SwitchDrawable(density, animations);
+        Drawable[] icons = button.getCompoundDrawablesRelative();
+        button.setCompoundDrawablesRelativeWithIntrinsicBounds(icons[0], null, toggle, null);
+        button.setCompoundDrawableTintList(null);
+        button.setCompoundDrawablePadding(Math.round(8 * density));
+        toggle.setChecked(AirPlayControl.remembered(this));
+        if (iconOnly) {
+            button.setContentDescription(button.getText());
+            button.setText(null);
+            button.setMaxWidth(Integer.MAX_VALUE);
+        }
+        button.setOnClickListener(v -> {
+            boolean on = !toggle.isChecked();
+            v.setEnabled(false);
+            toggle.setChecked(on);
+            toggle.setBusy(true);
             AirPlayControl.apply(this, on, (ok, data) -> {
-                toggle.setEnabled(true);
+                v.setEnabled(true);
+                toggle.setBusy(false);
                 if (ok) {
                     AirPlayControl.remember(this, on);
                 } else {
-                    toggle.setChecked(!on, false);
+                    toggle.setChecked(!on);
                     Toast.makeText(this, R.string.airplay_needs_phone, Toast.LENGTH_LONG).show();
                 }
             });
         });
-        bar.addView(toggle, bar.indexOfChild(rtl ? btnVpn : btnWifi), tlp);
-        topAppButtons.add(toggle);
+        boolean rtl = getResources().getBoolean(R.bool.rtl_menu_bar);
+        bar.addView(button, bar.indexOfChild(rtl ? btnVpn : btnWifi));
+        topAppButtons.add(button);
         if (AirPlayControl.allowed(this)) {
             // Show what the receiver really does, not only what we last asked for.
             AirPlayControl.readEnabled(this, (ok, data) -> {
-                if (!ok || !toggle.isEnabled()) return;
+                if (!ok || !button.isEnabled()) return;
                 boolean actual = "true".equals(data);
-                toggle.setChecked(actual, false);
+                toggle.setChecked(actual);
                 AirPlayControl.remember(this, actual);
             });
         }
@@ -2548,7 +2548,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         settings.setOnClickListener(v -> AirPlaySettingsDialog.show(this, animations, () -> {
             if (AirPlayControl.allowed(this)) {
                 AirPlayControl.readEnabled(this, (ok, data) -> {
-                    if (ok) toggle.setChecked("true".equals(data), false);
+                    if (ok) toggle.setChecked("true".equals(data));
                 });
             }
         }));

@@ -10,7 +10,6 @@ import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
-import android.graphics.drawable.StateListDrawable;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.LruCache;
@@ -49,6 +48,7 @@ final class AppDrawerDialog {
     private final float density;
     private volatile boolean closed;
     private Adapter adapter;
+    private GridView gridView;
 
     private static final class Entry {
         final String label;
@@ -84,13 +84,15 @@ final class AppDrawerDialog {
         column.addView(title);
 
         GridView grid = new GridView(activity);
+        gridView = grid;
         grid.setColumnWidth(Math.round(132 * density));
         grid.setNumColumns(GridView.AUTO_FIT);
         grid.setStretchMode(GridView.STRETCH_COLUMN_WIDTH);
         grid.setVerticalSpacing(Math.round(8 * density));
         grid.setHorizontalSpacing(Math.round(8 * density));
         grid.setClipToPadding(false);
-        grid.setSelector(new ColorDrawable(Color.TRANSPARENT));
+        grid.setSelector(highlight());
+        grid.setDrawSelectorOnTop(true);
         grid.setPadding(0, Math.round(4 * density), 0, pad);
         grid.setOverScrollMode(View.OVER_SCROLL_NEVER);
         adapter = new Adapter();
@@ -105,6 +107,7 @@ final class AppDrawerDialog {
             entries.clear();
             icons.evictAll();
             adapter = null;
+            gridView = null;
             if (onClose != null) onClose.run();
         });
         Window w = dialog.getWindow();
@@ -133,6 +136,8 @@ final class AppDrawerDialog {
             for (ResolveInfo info : pm.queryIntentActivities(query, 0)) {
                 ActivityInfo ai = info.activityInfo;
                 if (ai == null || self.equals(ai.packageName) || !seen.add(ai.packageName)) continue;
+                // The AirPlay receiver is run from the AirPlay pill and its settings; it is put on Home only from the 9-dots library.
+                if (AirPlayControl.PKG.equals(ai.packageName) || AirPlayControl.LEGACY_PKG.equals(ai.packageName)) continue;
                 CharSequence label = info.loadLabel(pm);
                 Intent launch = new Intent(Intent.ACTION_MAIN).addCategory(category)
                         .setClassName(ai.packageName, ai.name).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
@@ -149,6 +154,7 @@ final class AppDrawerDialog {
             entries.clear();
             entries.addAll(found);
             adapter.notifyDataSetChanged();
+            if (gridView != null) gridView.requestFocus();   // selects the first app, so the frame shows at once
         });
     }
 
@@ -176,16 +182,13 @@ final class AppDrawerDialog {
         return d;
     }
 
-    private StateListDrawable cellBackground() {
-        GradientDrawable focused = new GradientDrawable();
-        focused.setColor(0x33FFFFFF);
-        focused.setStroke(Math.round(2 * density), 0xFFFFFFFF);
-        focused.setCornerRadius(14 * density);
-        StateListDrawable s = new StateListDrawable();
-        s.addState(new int[]{android.R.attr.state_focused}, focused);
-        s.addState(new int[]{android.R.attr.state_pressed}, focused);
-        s.addState(new int[]{}, new ColorDrawable(Color.TRANSPARENT));
-        return s;
+    /** The white frame around the selected app: a GridView draws this itself (its cells never take focus on their own). */
+    private Drawable highlight() {
+        GradientDrawable box = new GradientDrawable();
+        box.setColor(0x33FFFFFF);
+        box.setStroke(Math.round(2 * density), 0xFFFFFFFF);
+        box.setCornerRadius(14 * density);
+        return box;
     }
 
     private final class Adapter extends BaseAdapter {
@@ -204,7 +207,6 @@ final class AppDrawerDialog {
                 cell.setGravity(Gravity.CENTER_HORIZONTAL);
                 int p = Math.round(10 * density);
                 cell.setPadding(p, p, p, p);
-                cell.setBackground(cellBackground());
                 image = new ImageView(activity);
                 image.setId(android.R.id.icon);
                 int s = Math.round(56 * density);
