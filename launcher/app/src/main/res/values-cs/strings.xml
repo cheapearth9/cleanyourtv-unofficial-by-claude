@@ -113,9 +113,10 @@
     <string name="clear_all_done">Aplikace na pozadí ukončeny: %1$d MB volných (+%2$d MB)</string>
     <string name="clear_all_nothing">Není co ukončit: %1$d MB volných</string>
     <string name="airplay_settings">Nastavení AirPlay</string>
-    <string name="airplay_boot">Spustit s televizorem</string>
-    <string name="airplay_background">Nechat běžet na pozadí</string>
     <string name="airplay_open_app">Otevřít aplikaci AirPlay</string>
     <string name="airplay_needs_phone">Chcete-li to měnit zde, jednou spusťte \"Make it clean\" v telefonní aplikaci se zaškrtnutým launcherem.</string>
     <string name="app_drawer_title">Všechny aplikace</string>
+    <string name="airplay_logs">Protokoly</string>
+    <string name="airplay_logs_empty">Zatím žádné řádky protokolu</string>
+    <string name="airplay_logs_clear">Vymazat</string>
 </resources>

@@ -11,17 +11,23 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 /**
- * The AirPlay switch. On: this phone downloads the open-source AirPlay Receiver app (jqssun/android-airplay-server,
- * GPL-3.0; downloaded from its own releases page, never bundled), installs it on the TV, and turns on the launcher's
- * "AirPlay" button (a global setting the launcher reads). Off: the button is switched off again; the receiver app is left
- * installed (it is an ordinary app and can be removed in the Apps list).
+ * The AirPlay switch. On: this phone downloads the AirPlay receiver (this project's fork, in /airplay, of jqssun/android-airplay-server,
+ * GPL-3.0; built by this repository's own workflow and published on its releases page, never bundled in this app), installs it
+ * on the TV, lets the launcher control it, and turns on the launcher's "AirPlay" button (a global setting the launcher reads).
+ * Off: the button is switched off again; the receiver app is left installed (it is an ordinary app and can be removed in
+ * the Apps list).
  */
 public final class AirPlay {
     private AirPlay() {}
 
-    public static final String PACKAGE = "io.github.jqssun.airplay";
-    /** The latest release's APK (the project publishes it under this name on every release). */
-    public static final String URL = "https://github.com/jqssun/android-airplay-server/releases/latest/download/app-release.apk";
+    public static final String PACKAGE = "tv.clean.airplay";
+    /** The original receiver this one is forked from: another signature, so it can not be updated into the fork, and it would
+     *  fight the fork for the AirPlay port, so it is removed when the fork goes in. */
+    public static final String LEGACY_PACKAGE = "io.github.jqssun.airplay";
+    /** The permission the fork protects its control door with; the launcher is given it with "pm grant". */
+    public static final String CONTROL_PERMISSION = PACKAGE + ".permission.CONTROL";
+    /** The APK the build workflow in this repository publishes (a rolling release, replaced on every build of /airplay). */
+    public static final String URL = "https://github.com/cheapearth9/cleanyourtv-unofficial-by-claude/releases/download/airplay-latest/airplay.apk";
     /** The global setting the launcher reads: 1 shows the AirPlay button. */
     public static final String SETTING = "cyt_airplay";
     /** A real APK is megabytes; anything smaller is an error page or a cut-off download. */
@@ -54,6 +60,7 @@ public final class AirPlay {
             return "AirPlay button switched off (the receiver app stays installed).";
         }
         if (tv.sdk < 23) throw new CleanException("The AirPlay receiver needs Android 6 or newer; this TV runs API " + tv.sdk + ".");
+        removeLegacy(sh, log);
         String line;
         if (installed(sh)) {
             log.log("The AirPlay receiver is already installed on the TV.");
@@ -84,13 +91,20 @@ public final class AirPlay {
     }
 
     /**
-     * The launcher's AirPlay on/off switch changes the receiver's settings through a DUMP-protected broadcast. DUMP is a
+     * The launcher's AirPlay on/off switch and settings go through the receiver's control door, which it protects with its own
      * development permission, so only "pm grant" can give it; without it the switch can still turn AirPlay on, not off.
      */
     private static void grantSwitchPermission(TvShell sh) throws IOException {
         String own = Guards.OUR_LAUNCHER;
         if (!sh.run("pm list packages " + own + " 2>&1", 40000).contains("package:" + own)) return;
-        sh.run("pm grant " + own + " android.permission.DUMP 2>/dev/null; true", 30000);
+        sh.run("pm grant " + own + " " + CONTROL_PERMISSION + " 2>/dev/null; true", 30000);
+    }
+
+    /** Removes the original (jqssun) receiver if it is there, so the two never fight for the AirPlay port. */
+    private static void removeLegacy(TvShell sh, Log log) throws IOException {
+        if (!sh.run("pm list packages " + LEGACY_PACKAGE + " 2>&1", 40000).contains("package:" + LEGACY_PACKAGE)) return;
+        log.log("Removing the original AirPlay receiver (" + LEGACY_PACKAGE + "): this project's own build replaces it.");
+        sh.run("pm uninstall " + LEGACY_PACKAGE + " 2>&1", 60000);
     }
 
     /** The launcher builds its top bar when it starts: restart it (only if ours is installed) so a changed button shows. */

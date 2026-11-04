@@ -413,8 +413,9 @@ public final class Cleaner {
             + "settings put secure enabled_accessibility_services \"$s\"; settings put secure accessibility_enabled \"$a\" ;; esac", 30000);
 
         sh.run("pm grant " + OUR + " android.permission.ACCESS_FINE_LOCATION 2>/dev/null; true", 30000);
-        // Lets the launcher's AirPlay switch change the receiver's settings (a development permission, so only "pm grant" can give it).
-        sh.run("pm grant " + OUR + " android.permission.DUMP 2>/dev/null; true", 30000);
+        // Lets the launcher's AirPlay switch control the AirPlay receiver (a development permission, so only "pm grant" can give it;
+        // harmless when the receiver is not installed yet: the grant is repeated when AirPlay is switched on).
+        sh.run("pm grant " + OUR + " " + AirPlay.CONTROL_PERMISSION + " 2>/dev/null; true", 30000);
         if (o.config != null) {
             pushConfig(sh, o.config);
             log.log("Applied the recommended dock layout.");

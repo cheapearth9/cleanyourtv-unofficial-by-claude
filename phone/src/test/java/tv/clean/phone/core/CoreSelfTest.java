@@ -488,8 +488,12 @@ public final class CoreSelfTest {
         a.installed.add("com.gathin.tvhome");
         AirPlay.apply(a, TvInfo.probe(a), true, mustNotRun, false, log);
         boolean granted = false;
-        for (String h : a.history) if (h.contains("pm grant com.gathin.tvhome android.permission.DUMP")) granted = true;
-        check(granted, "AirPlay on: the launcher is given the permission its on/off switch needs");
+        for (String h : a.history) if (h.contains("pm grant com.gathin.tvhome tv.clean.airplay.permission.CONTROL")) granted = true;
+        check(granted, "AirPlay on: the launcher is given the permission to control the receiver");
+        a.installed.add(AirPlay.LEGACY_PACKAGE);
+        AirPlay.apply(a, TvInfo.probe(a), true, mustNotRun, false, log);
+        check(!a.installed.contains(AirPlay.LEGACY_PACKAGE) && a.installed.contains(AirPlay.PACKAGE),
+            "AirPlay on: the original (jqssun) receiver is removed, the fork stays");
 
         // off: only the setting changes; the app stays
         a.ownInstalled = true;

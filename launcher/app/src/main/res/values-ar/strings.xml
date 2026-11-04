@@ -102,9 +102,10 @@
     <string name="clear_all_done">تم مسح تطبيقات الخلفية: %1$d ميغابايت متاحة (+%2$d ميغابايت)</string>
     <string name="clear_all_nothing">لا شيء لمسحه: %1$d ميغابايت متاحة</string>
     <string name="airplay_settings">إعدادات AirPlay</string>
-    <string name="airplay_boot">التشغيل مع التلفزيون</string>
-    <string name="airplay_background">البقاء قيد التشغيل في الخلفية</string>
     <string name="airplay_open_app">فتح تطبيق AirPlay</string>
     <string name="airplay_needs_phone">لتغيير هذه الإعدادات من هنا، شغّل \"Make it clean\" مرة واحدة من تطبيق الهاتف مع تحديد المشغّل.</string>
     <string name="app_drawer_title">كل التطبيقات</string>
+    <string name="airplay_logs">السجلات</string>
+    <string name="airplay_logs_empty">لا توجد أسطر في السجل بعد</string>
+    <string name="airplay_logs_clear">مسح</string>
 </resources>

@@ -115,9 +115,10 @@
     <string name="clear_all_done">Fon ilovalari yopildi: %1$d MB boʻsh (+%2$d MB)</string>
     <string name="clear_all_nothing">Yopiladigan narsa yoʻq: %1$d MB boʻsh</string>
     <string name="airplay_settings">AirPlay sozlamalari</string>
-    <string name="airplay_boot">Televizor bilan ishga tushirish</string>
-    <string name="airplay_background">Fonda ishlashda davom etish</string>
     <string name="airplay_open_app">AirPlay ilovasini ochish</string>
     <string name="airplay_needs_phone">Buni shu yerda o\'zgartirish uchun telefon ilovasida launcher belgilangan holda \"Make it clean\"ni bir marta ishga tushiring.</string>
     <string name="app_drawer_title">Barcha ilovalar</string>
+    <string name="airplay_logs">Jurnallar</string>
+    <string name="airplay_logs_empty">Hozircha jurnal satrlari yo\'q</string>
+    <string name="airplay_logs_clear">Tozalash</string>
 </resources>

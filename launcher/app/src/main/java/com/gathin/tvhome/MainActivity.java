@@ -2545,7 +2545,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
         TextView settings = (TextView) getLayoutInflater().inflate(R.layout.top_airplay_settings_button, bar, false);
         settings.setId(View.generateViewId());
-        settings.setOnClickListener(v -> AirPlaySettingsDialog.show(this, () -> {
+        settings.setOnClickListener(v -> AirPlaySettingsDialog.show(this, animations, () -> {
             if (AirPlayControl.allowed(this)) {
                 AirPlayControl.readEnabled(this, (ok, data) -> {
                     if (ok) toggle.setChecked("true".equals(data), false);

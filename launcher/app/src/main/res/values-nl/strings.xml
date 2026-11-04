@@ -116,9 +116,10 @@
     <string name="clear_all_done">Achtergrond-apps afgesloten: %1$d MB vrij (+%2$d MB)</string>
     <string name="clear_all_nothing">Niets om af te sluiten: %1$d MB vrij</string>
     <string name="airplay_settings">AirPlay-instellingen</string>
-    <string name="airplay_boot">Starten met de tv</string>
-    <string name="airplay_background">Op de achtergrond blijven draaien</string>
     <string name="airplay_open_app">AirPlay-app openen</string>
     <string name="airplay_needs_phone">Om dit hier te wijzigen, voer je één keer \"Make it clean\" uit in de telefoon-app met de launcher aangevinkt.</string>
     <string name="app_drawer_title">Alle apps</string>
+    <string name="airplay_logs">Logboeken</string>
+    <string name="airplay_logs_empty">Nog geen logregels</string>
+    <string name="airplay_logs_clear">Wissen</string>
 </resources>
