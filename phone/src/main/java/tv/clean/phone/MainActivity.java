@@ -388,11 +388,12 @@ public class MainActivity extends Activity {
         }
     }
 
-    /** Whether the launcher's AirPlay button is switched on by this app right now. */
+    /** Whether AirPlay is on right now: the launcher's button setting is on AND this project's receiver is installed
+     *  (an older version of this app switched the setting on and installed the original receiver instead). */
     private void readAirplay() {
         airplayOnNow = false;
         try {
-            airplayOnNow = AirPlay.enabled(shell);
+            airplayOnNow = AirPlay.enabled(shell) && AirPlay.installed(shell);
         } catch (IOException ignored) {
             // shown as off; applying it later reports the real problem
         }
