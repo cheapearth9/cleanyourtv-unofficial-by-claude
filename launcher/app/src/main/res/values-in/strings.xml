@@ -114,7 +114,6 @@
     <string name="clear_all_done">Aplikasi latar belakang ditutup: %1$d MB tersedia (+%2$d MB)</string>
     <string name="clear_all_nothing">Tidak ada yang perlu ditutup: %1$d MB tersedia</string>
     <string name="airplay_settings">Setelan AirPlay</string>
-    <string name="airplay_open_app">Buka aplikasi AirPlay</string>
     <string name="airplay_needs_phone">Untuk mengubahnya dari sini, jalankan \"Make it clean\" sekali dari aplikasi ponsel dengan launcher dicentang.</string>
     <string name="app_drawer_title">Semua aplikasi</string>
     <string name="airplay_logs">Log</string>

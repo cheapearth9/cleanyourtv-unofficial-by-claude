@@ -72,7 +72,6 @@
     <string name="clear_all_done">ปิดแอปพื้นหลังแล้ว: ว่าง %1$d MB (+%2$d MB)</string>
     <string name="clear_all_nothing">ไม่มีอะไรให้ปิด: ว่าง %1$d MB</string>
     <string name="airplay_settings">การตั้งค่า AirPlay</string>
-    <string name="airplay_open_app">เปิดแอป AirPlay</string>
     <string name="airplay_needs_phone">หากต้องการเปลี่ยนจากที่นี่ ให้รัน \"Make it clean\" หนึ่งครั้งจากแอปบนโทรศัพท์โดยเลือกแลนเชอร์ไว้</string>
     <string name="app_drawer_title">แอปทั้งหมด</string>
     <string name="airplay_logs">บันทึก</string>

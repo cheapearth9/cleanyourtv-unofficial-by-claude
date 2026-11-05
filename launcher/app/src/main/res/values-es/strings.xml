@@ -149,7 +149,6 @@
     <string name="clear_all_done">Apps en segundo plano cerradas: %1$d MB libres (+%2$d MB)</string>
     <string name="clear_all_nothing">Nada que cerrar: %1$d MB libres</string>
     <string name="airplay_settings">Ajustes de AirPlay</string>
-    <string name="airplay_open_app">Abrir la app AirPlay</string>
     <string name="airplay_needs_phone">Para cambiarlo desde aquí, ejecuta \"Make it clean\" una vez desde la app del móvil con el launcher marcado.</string>
     <string name="app_drawer_title">Todas las apps</string>
     <string name="airplay_logs">Registros</string>

@@ -158,6 +158,11 @@ public final class AirPlay {
 
     /** The manifest names the receiver's package (as UTF-8 or UTF-16 text in the binary manifest). */
     static boolean isReceiver(File apk) {
+        return hasPackage(apk, PACKAGE);
+    }
+
+    /** The manifest names this package (as UTF-8 or UTF-16 text in the binary manifest). */
+    static boolean hasPackage(File apk, String pkg) {
         try (ZipFile z = new ZipFile(apk)) {
             ZipEntry e = z.getEntry("AndroidManifest.xml");
             if (e == null) return false;
@@ -169,14 +174,14 @@ public final class AirPlay {
                 while ((n = in.read(buf)) > 0) o.write(buf, 0, n);
                 m = o.toByteArray();
             }
-            return indexOf(m, PACKAGE.getBytes(StandardCharsets.UTF_8)) >= 0
-                || indexOf(m, PACKAGE.getBytes(StandardCharsets.UTF_16LE)) >= 0;
+            return indexOf(m, pkg.getBytes(StandardCharsets.UTF_8)) >= 0
+                || indexOf(m, pkg.getBytes(StandardCharsets.UTF_16LE)) >= 0;
         } catch (IOException e) {
             return false;
         }
     }
 
-    private static int indexOf(byte[] hay, byte[] needle) {
+    static int indexOf(byte[] hay, byte[] needle) {
         outer:
         for (int i = 0; i + needle.length <= hay.length; i++) {
             for (int j = 0; j < needle.length; j++) if (hay[i + j] != needle[j]) continue outer;

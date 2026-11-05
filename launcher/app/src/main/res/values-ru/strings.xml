@@ -155,7 +155,6 @@
     <string name="clear_all_done">Фоновые приложения закрыты: свободно %1$d МБ (+%2$d МБ)</string>
     <string name="clear_all_nothing">Нечего закрывать: свободно %1$d МБ</string>
     <string name="airplay_settings">Настройки AirPlay</string>
-    <string name="airplay_open_app">Открыть приложение AirPlay</string>
     <string name="airplay_needs_phone">Чтобы менять это здесь, один раз запустите \"Make it clean\" в приложении на телефоне с отмеченным лаунчером.</string>
     <string name="app_drawer_title">Все приложения</string>
     <string name="airplay_logs">Журнал</string>

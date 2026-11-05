@@ -30,6 +30,8 @@ import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
 import android.widget.ScrollView;
 import android.widget.Spinner;
 import android.widget.ArrayAdapter;
@@ -52,6 +54,7 @@ import java.util.concurrent.Executors;
 import tv.clean.phone.adb.AdbConnection;
 import tv.clean.phone.adb.AdbKey;
 import tv.clean.phone.core.AirPlay;
+import tv.clean.phone.core.NoAdYoutube;
 import tv.clean.phone.core.ApkInstaller;
 import tv.clean.phone.core.AppManager;
 import tv.clean.phone.core.Cleaner;
@@ -101,6 +104,10 @@ public class MainActivity extends Activity {
     private boolean barsHiddenNow;
     private CheckBox airplayBox;
     private boolean airplayOnNow;
+    private CheckBox noAdBox;
+    private RadioGroup noAdGroup;
+    private RadioButton noAdSmart;
+    private RadioButton noAdVacuum;
     private boolean barsSupported;
     private LinearLayout details;
     private ProgressBar progress;
@@ -496,6 +503,28 @@ public class MainActivity extends Activity {
             + "is replaced. Needs internet on this phone. Untick it and press Make it clean to hide the buttons again "
             + "(the receiver app stays installed; remove it in the Apps list)."));
         root.addView(ac);
+
+        // "Install a no ad YouTube": a switch that, only while it is on, shows the two apps to choose from.
+        LinearLayout nc = card();
+        noAdBox = check("Install a no ad YouTube", false);
+        nc.addView(noAdBox);
+        noAdGroup = new RadioGroup(this);
+        noAdGroup.setOrientation(RadioGroup.VERTICAL);
+        noAdSmart = radio("SmartTube\nVery lightweight, but doesn't have native YouTube UI");
+        noAdVacuum = radio("VacuumTube\nLightweight, exactly the same as normal YouTube but with more settings");
+        noAdGroup.addView(noAdSmart);
+        noAdGroup.addView(noAdVacuum);
+        noAdGroup.check(noAdVacuum.getId());
+        noAdGroup.setVisibility(View.GONE);
+        nc.addView(noAdGroup);
+        noAdBox.setOnCheckedChangeListener(new android.widget.CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(android.widget.CompoundButton b, boolean on) {
+                noAdGroup.setVisibility(on ? View.VISIBLE : View.GONE);
+                updateCount();
+            }
+        });
+        root.addView(nc);
         runButton = button("Make it clean", true);
         runButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -639,8 +668,10 @@ public class MainActivity extends Activity {
         if (barsChange) t += barsBox.isChecked() ? " + hide the bars" : " + bring the bars back";
         boolean airplayChange = airplayBox != null && airplayBox.isChecked() != airplayOnNow;
         if (airplayChange) t += airplayBox.isChecked() ? " + the AirPlay button" : " + hide the AirPlay button";
+        boolean noAd = noAdChoice() != null;
+        if (noAd) t += " + " + noAdChoice().label;
         countView.setText(t);
-        if (runButton != null) runButton.setEnabled(n > 0 || launcher || barsChange || airplayChange);
+        if (runButton != null) runButton.setEnabled(n > 0 || launcher || barsChange || airplayChange || noAd);
     }
 
     private boolean hasLauncherAsset() {
@@ -673,7 +704,8 @@ public class MainActivity extends Activity {
         final boolean hideBars = barsBox != null && barsBox.isChecked();
         final boolean airplayChange = airplayBox != null && airplayBox.isChecked() != airplayOnNow;
         final boolean airplayOn = airplayBox != null && airplayBox.isChecked();
-        if (selected.isEmpty() && !launcher && !barsChange && !airplayChange) {
+        final NoAdYoutube.Choice noAd = noAdChoice();
+        if (selected.isEmpty() && !launcher && !barsChange && !airplayChange && noAd == null) {
             toast("Nothing selected.");
             return;
         }
@@ -684,6 +716,7 @@ public class MainActivity extends Activity {
         StringBuilder msg = new StringBuilder();
         if (barsChange) msg.append(hideBars ? "Hide the on-screen buttons and the notification bar.\n" : "Bring the on-screen buttons and the notification bar back.\n");
         if (airplayChange) msg.append(airplayOn ? "Download the AirPlay receiver to this phone, install it on the TV and add the AirPlay button.\n" : "Hide the AirPlay button.\n");
+        if (noAd != null) msg.append("Download ").append(noAd.label).append(" to this phone and install it on the TV (needs internet on this phone).\n");
         if (!selected.isEmpty()) msg.append("Disable ").append(selected.size()).append(" apps (reversible).\n");
         if (launcher) {
             msg.append("Install the clean launcher.\n");
@@ -698,7 +731,7 @@ public class MainActivity extends Activity {
             .setPositiveButton("Go", new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface d, int w) {
-                    runApply(selected, launcher, stock, alsoDisable, barsChange, hideBars, airplayChange, airplayOn);
+                    runApply(selected, launcher, stock, alsoDisable, barsChange, hideBars, airplayChange, airplayOn, noAd);
                 }
             }).show();
     }
@@ -761,7 +794,8 @@ public class MainActivity extends Activity {
     };
 
     private void runApply(final List<String> selected, final boolean launcher, final String stock, final List<String> alsoDisable,
-                          final boolean barsChange, final boolean hideBars, final boolean airplayChange, final boolean airplayOn) {
+                          final boolean barsChange, final boolean hideBars, final boolean airplayChange, final boolean airplayOn,
+                          final NoAdYoutube.Choice noAd) {
         showRun("Working on " + info.title());
         final byte[] apk = launcher ? readAsset("launcher.apk") : null;
         final byte[] cfg = launcher && layoutBox != null && layoutBox.isChecked() && plan.best != null
@@ -813,6 +847,21 @@ public class MainActivity extends Activity {
                         } catch (CleanException e) {
                             logger.log("AirPlay: " + e.getMessage());
                             summary.append("AirPlay unchanged: ").append(e.getMessage()).append('\n');
+                        }
+                    }
+                    if (noAd != null) {
+                        logger.log("== " + noAd.label + " ==");
+                        try {
+                            String line = NoAdYoutube.install(shell, info, noAd, new NoAdYoutube.Fetch() {
+                                @Override
+                                public File fetch(NoAdYoutube.Choice c, String abis, Log log) throws IOException {
+                                    return NoAdYoutube.download(c, abis, new File(getCacheDir(), "no-ad-youtube.apk"), log);
+                                }
+                            }, logger);
+                            summary.append(summary.length() > 0 ? "\n" : "").append(line).append('\n');
+                        } catch (CleanException e) {
+                            logger.log(noAd.label + ": " + e.getMessage());
+                            summary.append(noAd.label).append(" not installed: ").append(e.getMessage()).append('\n');
                         }
                     }
                     if (launcher) {
@@ -1489,6 +1538,22 @@ public class MainActivity extends Activity {
         t.setTextColor(DANGER);
         t.setTextSize(13);
         return t;
+    }
+
+    private RadioButton radio(String s) {
+        RadioButton r = new RadioButton(this);
+        r.setId(View.generateViewId());
+        r.setText(s);
+        r.setTextColor(TEXT);
+        r.setTextSize(13);
+        r.setPadding(r.getPaddingLeft(), dp(6), 0, dp(6));
+        return r;
+    }
+
+    /** The no-ad YouTube the person picked, or null while the switch is off. */
+    private NoAdYoutube.Choice noAdChoice() {
+        if (noAdBox == null || !noAdBox.isChecked()) return null;
+        return noAdGroup.getCheckedRadioButtonId() == noAdSmart.getId() ? NoAdYoutube.Choice.SMARTTUBE : NoAdYoutube.Choice.VACUUMTUBE;
     }
 
     private CheckBox check(String s, boolean on) {

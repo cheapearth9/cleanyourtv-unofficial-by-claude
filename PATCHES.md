@@ -98,3 +98,15 @@ The phone app (`phone/`) is new code. Its debloat logic is a port of upstream `t
   Developer, in the same order, labelled with the receiver's own texts read from its resources by name, so they match the
   original app; the Developer rows appear when "Developer options" is on), and at the bottom "Open the AirPlay app" and "Logs"
   (the service's log, with Clear). The main switch shows whether the server really runs (STATUS).
+* the AirPlay pill and its on/off switch are now ONE button (`SwitchDrawable` drawn as the pill's end icon): pressing it turns
+  the AirPlay server on or off and never opens the receiver app. The app is reached only through a Home shortcut added from
+  the 9-dots library; it is also left out of the bottom app drawer, and the "Open the AirPlay app" row is gone from AirPlay
+  settings. The drawer's selection frame is now the GridView's own selector (its cells never took focus, so the old per-cell
+  frame never showed) and the first app is selected when it opens.
+* "Install a no ad YouTube" (phone app): a switch that, only while on, shows two choices. **SmartTube** ("Very lightweight, but
+  doesn't have native YouTube UI"): the phone reads yuliskov/SmartTube's latest release and downloads the APK for the TV's
+  processor (arm64-v8a, armeabi-v7a, x86, else universal), package `org.smarttube.stable`. **VacuumTube** ("Lightweight, exactly
+  the same as normal YouTube but with more settings", the default): the owner's own build, `releases/download/android-latest/
+  VacuumTube-AndroidTV.apk` of cheapearth9/vacuumtube-forked-by-claude, package `io.github.cheapearth9.vacuumtube`, Android 5+.
+  The phone downloads, checks the file is that app, and installs it on the TV (`NoAdYoutube`); nothing is bundled and the TV
+  needs no GitHub access. An installed app is not downloaded again; with the switch off nothing is shown or done.
