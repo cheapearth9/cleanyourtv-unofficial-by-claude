@@ -413,6 +413,7 @@ public final class CoreSelfTest {
 
         // ---- AirPlay switch
         airplayTests();
+        noAdYoutubeTests();
 
         System.out.println(failures == 0 ? "ALL PASSED" : failures + " FAILED");
         System.exit(failures == 0 ? 0 : 1);
@@ -432,6 +433,40 @@ public final class CoreSelfTest {
             zo.closeEntry();
         }
         return f;
+    }
+
+    static void noAdYoutubeTests() throws Exception {
+        java.util.List<String> logs = new ArrayList<>();
+        Log log = logs::add;
+        String json = "{\"assets\":[{\"name\":\"a\",\"browser_download_url\":\"https://x/SmartTube_stable_1_arm64-v8a.apk\"},"
+            + "{\"browser_download_url\":\"https://x/SmartTube_stable_1_armeabi-v7a.apk\"},{\"browser_download_url\":\"https://x/SmartTube_stable_1_universal.apk\"},"
+            + "{\"browser_download_url\":\"https://x/SmartTube_stable_1_x86.apk\"},{\"browser_download_url\":\"https://x/notes.txt\"}]}";
+        check(NoAdYoutube.pickSmartTube(json, "armeabi-v7a,armeabi").endsWith("armeabi-v7a.apk"), "SmartTube: a 32-bit ARM box gets the armeabi-v7a file");
+        check(NoAdYoutube.pickSmartTube(json, "arm64-v8a,armeabi-v7a,armeabi").endsWith("arm64-v8a.apk"), "SmartTube: a 64-bit ARM box gets the arm64-v8a file");
+        check(NoAdYoutube.pickSmartTube(json, "x86_64,x86").endsWith("_x86.apk"), "SmartTube: an x86 box gets the x86 file");
+        check(NoAdYoutube.pickSmartTube(json, "mips").endsWith("_universal.apk"), "SmartTube: an unknown processor gets the universal file");
+        check(NoAdYoutube.pickSmartTube("{}", "armeabi-v7a") == null, "SmartTube: a release without APKs gives no address");
+
+        java.io.File vt = fakeReceiver(NoAdYoutube.Choice.VACUUMTUBE.pkg, 600_000);
+        final byte[] vtBytes = java.nio.file.Files.readAllBytes(vt.toPath());
+        NoAdYoutube.Fetch fromDisk = (c, abis, l) -> { java.io.File f = java.io.File.createTempFile("fetched", ".apk"); java.nio.file.Files.write(f.toPath(), vtBytes); return f; };
+        NoAdYoutube.Fetch mustNotRun = (c, abis, l) -> { throw new AssertionError("downloaded although the app is already installed"); };
+
+        FakeTv a = fresh(25);
+        a.installAs = NoAdYoutube.Choice.VACUUMTUBE.pkg;
+        String line = NoAdYoutube.install(a, TvInfo.probe(a), NoAdYoutube.Choice.VACUUMTUBE, fromDisk, log);
+        check(a.installed.contains(NoAdYoutube.Choice.VACUUMTUBE.pkg) && line.contains("Installed"), "no-ad YouTube: VacuumTube is installed on the TV");
+        String again = NoAdYoutube.install(a, TvInfo.probe(a), NoAdYoutube.Choice.VACUUMTUBE, mustNotRun, log);
+        check(again.contains("already installed"), "no-ad YouTube: an installed app is not downloaded again");
+
+        FakeTv b = fresh(25);
+        try {
+            NoAdYoutube.install(b, TvInfo.probe(b), NoAdYoutube.Choice.SMARTTUBE, (c, abis, l) -> { throw new java.io.IOException("Unable to resolve host"); }, log);
+            check(false, "no internet on the phone must fail");
+        } catch (CleanException e) {
+            check(e.getMessage().contains("Could not download SmartTube") && e.getMessage().contains("internet"),
+                "no-ad YouTube: no internet gives a clear message");
+        }
     }
 
     static void airplayTests() throws Exception {

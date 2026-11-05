@@ -103,3 +103,10 @@ The phone app (`phone/`) is new code. Its debloat logic is a port of upstream `t
   the 9-dots library; it is also left out of the bottom app drawer, and the "Open the AirPlay app" row is gone from AirPlay
   settings. The drawer's selection frame is now the GridView's own selector (its cells never took focus, so the old per-cell
   frame never showed) and the first app is selected when it opens.
+* "Install a no ad YouTube" (phone app): a switch that, only while on, shows two choices. **SmartTube** ("Very lightweight, but
+  doesn't have native YouTube UI"): the phone reads yuliskov/SmartTube's latest release and downloads the APK for the TV's
+  processor (arm64-v8a, armeabi-v7a, x86, else universal), package `org.smarttube.stable`. **VacuumTube** ("Lightweight, exactly
+  the same as normal YouTube but with more settings", the default): the owner's own build, `releases/download/android-latest/
+  VacuumTube-AndroidTV.apk` of cheapearth9/vacuumtube-forked-by-claude, package `io.github.cheapearth9.vacuumtube`, Android 5+.
+  The phone downloads, checks the file is that app, and installs it on the TV (`NoAdYoutube`); nothing is bundled and the TV
+  needs no GitHub access. An installed app is not downloaded again; with the switch off nothing is shown or done.
