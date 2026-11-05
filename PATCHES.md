@@ -110,3 +110,6 @@ The phone app (`phone/`) is new code. Its debloat logic is a port of upstream `t
   VacuumTube-AndroidTV.apk` of cheapearth9/vacuumtube-forked-by-claude, package `io.github.cheapearth9.vacuumtube`, Android 5+.
   The phone downloads, checks the file is that app, and installs it on the TV (`NoAdYoutube`); nothing is bundled and the TV
   needs no GitHub access. An installed app is not downloaded again; with the switch off nothing is shown or done.
+* the AirPlay receiver's screen quits by itself (`finishAndRemoveTask`) the moment the last sender disconnects, so the TV goes
+  straight back to the launcher instead of showing an empty window (`MainActivity.kt`, within about 0.2 s: the screen reads
+  the connection count from the service that often). Opening it by hand with nobody connected does not close it.

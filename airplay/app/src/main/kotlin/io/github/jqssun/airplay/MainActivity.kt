@@ -95,6 +95,18 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        // cleanyourtv: the moment the last sender disconnects, quit this screen (back to the launcher) instead of leaving
+        // an empty window on the TV
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                var before = viewModel.connectionCount.value
+                viewModel.connectionCount.collect { now ->
+                    if (before > 0 && now == 0) finishAndRemoveTask()
+                    before = now
+                }
+            }
+        }
+
         // auto-enter pre-declared in pip params
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             lifecycleScope.launch {
