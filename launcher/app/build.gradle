@@ -10,6 +10,16 @@ android {
             enableV1Signing = true
             enableV2Signing = true
         }
+        // One fixed key for every cleanyourtv APK (this launcher and the phone app), committed on purpose: Android only installs
+        // an update over an app signed with the same key, and the CI runners would otherwise make a new random debug key each run.
+        cyt {
+            storeFile rootProject.file('cyt.keystore')
+            storePassword 'cleanyourtv'
+            keyAlias 'cyt'
+            keyPassword 'cleanyourtv'
+            enableV1Signing = true
+            enableV2Signing = true
+        }
     }
     compileSdk 34
 
@@ -28,8 +38,8 @@ android {
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            // Sideloaded over ADB, never published: sign with the debug key so it installs over a debug build.
-            signingConfig signingConfigs.debug
+            // Sideloaded over ADB, never published: signed with the fixed key above, so a new build installs over the old one.
+            signingConfig signingConfigs.cyt
         }
     }
 

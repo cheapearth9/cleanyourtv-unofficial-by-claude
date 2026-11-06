@@ -113,3 +113,8 @@ The phone app (`phone/`) is new code. Its debloat logic is a port of upstream `t
 * the AirPlay receiver's screen quits by itself (`finishAndRemoveTask`) the moment the last sender disconnects, so the TV goes
   straight back to the launcher instead of showing an empty window (`MainActivity.kt`, within about 0.2 s: the screen reads
   the connection count from the service that often). Opening it by hand with nobody connected does not close it.
+* every cleanyourtv APK is signed with one fixed key, `cyt.keystore` at the repository root (committed on purpose; sideload
+  key, not a secret): the phone app and the launcher (before, each CI run signed with a new random debug key, so a new build
+  could not be installed over the old one). The phone app's versionCode is the CI run number, so every build is newer. The AirPlay
+  receiver keeps its own fixed key (`airplay/app/cyt-airplay.keystore`) and VacuumTube has its own in its repository.
+  Builds made before this change were signed with a random key: uninstall that one once, then updates just work.
