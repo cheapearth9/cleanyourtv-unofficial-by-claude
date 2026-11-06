@@ -222,7 +222,6 @@ public final class AdbConnection implements Closeable {
 
     private void pushInner(InputStream src, long total, String remotePath, int mode, Progress progress) throws IOException {
         openStream("sync:");
-        long deadline = System.currentTimeMillis() + 120000;
         String spec = remotePath + "," + (0100000 | (mode & 0777));
         byte[] specBytes = spec.getBytes(StandardCharsets.UTF_8);
         writeStream(concat("SEND".getBytes(StandardCharsets.US_ASCII), le32(specBytes.length), specBytes));
@@ -247,6 +246,8 @@ public final class AdbConnection implements Closeable {
             if (n < chunk) break;
         }
         writeStream(concat("DONE".getBytes(StandardCharsets.US_ASCII), le32((int) (System.currentTimeMillis() / 1000))));
+        // The TV writes the whole file to flash before it answers, which takes minutes for a big APK: the wait starts now.
+        long deadline = System.currentTimeMillis() + 600000;
         // answer: "OKAY" + u32 0, or "FAIL" + u32 len + message
         while (inbox.size() < 8 && !streamClosed) {
             pump(remaining(deadline));
