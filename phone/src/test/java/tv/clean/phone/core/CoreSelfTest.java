@@ -450,14 +450,16 @@ public final class CoreSelfTest {
         java.io.File vt = fakeReceiver(NoAdYoutube.Choice.VACUUMTUBE.pkg, 600_000);
         final byte[] vtBytes = java.nio.file.Files.readAllBytes(vt.toPath());
         NoAdYoutube.Fetch fromDisk = (c, abis, l) -> { java.io.File f = java.io.File.createTempFile("fetched", ".apk"); java.nio.file.Files.write(f.toPath(), vtBytes); return f; };
-        NoAdYoutube.Fetch mustNotRun = (c, abis, l) -> { throw new AssertionError("downloaded although the app is already installed"); };
 
         FakeTv a = fresh(25);
         a.installAs = NoAdYoutube.Choice.VACUUMTUBE.pkg;
         String line = NoAdYoutube.install(a, TvInfo.probe(a), NoAdYoutube.Choice.VACUUMTUBE, fromDisk, log);
         check(a.installed.contains(NoAdYoutube.Choice.VACUUMTUBE.pkg) && line.contains("Installed"), "no-ad YouTube: VacuumTube is installed on the TV");
-        String again = NoAdYoutube.install(a, TvInfo.probe(a), NoAdYoutube.Choice.VACUUMTUBE, mustNotRun, log);
-        check(again.contains("already installed"), "no-ad YouTube: an installed app is not downloaded again");
+        int[] fetched = {0};
+        NoAdYoutube.Fetch counting = (c, abis, l) -> { fetched[0]++; return fromDisk.fetch(c, abis, l); };
+        String again = NoAdYoutube.install(a, TvInfo.probe(a), NoAdYoutube.Choice.VACUUMTUBE, counting, log);
+        check(fetched[0] == 1 && again.startsWith("Updated") && a.installed.contains(NoAdYoutube.Choice.VACUUMTUBE.pkg),
+            "no-ad YouTube: an app that is already installed is downloaded and updated, not skipped");
 
         FakeTv b = fresh(25);
         try {
