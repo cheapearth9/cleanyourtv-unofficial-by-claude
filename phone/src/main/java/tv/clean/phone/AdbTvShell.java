@@ -130,6 +130,16 @@ public final class AdbTvShell implements TvShell, Closeable {
         return run("id 2>&1", 15000).contains("uid=0");
     }
 
+    @Override
+    public synchronized String remountRw() throws IOException {
+        try {
+            return live().remount();
+        } catch (SocketTimeoutException e) {
+            drop();
+            throw e;
+        }
+    }
+
     private AdbConnection live() throws IOException {
         if (conn == null || conn.isBroken()) {
             note("Reconnecting to the TV...");

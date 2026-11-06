@@ -20,6 +20,11 @@ public interface TvShell {
         return run("id 2>&1", 15000).contains("uid=0");
     }
 
+    /** Makes the system partition writable the way "adb remount" does (needs root); returns the answer, or "" when unsupported. */
+    default String remountRw() throws IOException {
+        return "";
+    }
+
     /** Progress of a file push. */
     interface Progress {
         void onProgress(long sent, long total);

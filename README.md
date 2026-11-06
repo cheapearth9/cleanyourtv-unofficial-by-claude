@@ -48,6 +48,10 @@ application id (`tv.clean.airplay`), so it replaces the original app on the TV i
 It is built by its own workflow (**build-airplay**, slow: it compiles OpenSSL and FFmpeg) and published as the rolling release
 `airplay-latest`, which the phone app downloads when AirPlay is ticked. The first time, run **build-airplay** once.
 
+## Newer WebView (optional, needs root)
+
+Old Android TV boxes ship an old WebView (Chrome 52 on Android 7), which breaks or slows some apps. In the phone app, Apps, "Update the TV's WebView" lets you pick a WebView APK from your phone (for Android 7, the generic `com.android.webview` build for API 24 works). The TV must allow `adb root`. The app saves the TV's own WebView first and puts it back if the new one does not work. Experimental: tested against a pretend TV only.
+
 ## Safety rules (same as upstream, plus a few)
 
 Never disabled: Android core and TV middleware, HDMI/AV/tuner drivers (apps holding `TV_INPUT_HARDWARE`), the app that

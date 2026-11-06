@@ -118,3 +118,9 @@ The phone app (`phone/`) is new code. Its debloat logic is a port of upstream `t
   could not be installed over the old one). The phone app's versionCode is the CI run number, so every build is newer. The AirPlay
   receiver keeps its own fixed key (`airplay/app/cyt-airplay.keystore`) and VacuumTube has its own in its repository.
   Builds made before this change were signed with a random key: uninstall that one once, then updates just work.
+* Apps screen (phone app): "Update the TV's WebView (needs root)" and "Put back the original WebView". Android 7 boxes only load the
+  WebView named `com.android.webview` (an old Chrome 52). The phone reads the chosen WebView APK, renames its package to that name
+  when needed (it edits the compiled manifest itself), keeps only the TV's CPU types, stores the native libraries uncompressed and
+  4096-aligned, signs it, saves the TV's original WebView in `/data/local/cyt-webview-original.apk`, writes the new one over the
+  system file (`adb root` + `adb remount`), restarts the TV, and puts the original back by itself if the TV does not take the new
+  one. Tested against a pretend TV and with the JDK's own signature check; not yet tried on a real TV.

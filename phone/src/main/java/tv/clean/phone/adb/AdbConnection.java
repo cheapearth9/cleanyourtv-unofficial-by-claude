@@ -194,6 +194,13 @@ public final class AdbConnection implements Closeable {
         }
     }
 
+    /** What "adb remount" does: asks adbd (running as root) to make the system partitions writable. Returns its answer. */
+    public String remount() throws IOException {
+        openStream("remount:");
+        byte[] raw = readUntilClose(60000);
+        return new String(raw, StandardCharsets.UTF_8).trim();
+    }
+
     public String shellOutput(String command, int timeoutMs) throws IOException {
         return shell(command, timeoutMs).output;
     }

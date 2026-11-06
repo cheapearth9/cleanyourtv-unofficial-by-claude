@@ -67,6 +67,7 @@ import tv.clean.phone.core.Record;
 import tv.clean.phone.core.SystemBars;
 import tv.clean.phone.core.ResolverTable;
 import tv.clean.phone.core.TvInfo;
+import tv.clean.phone.core.WebViewSwap;
 
 /** One activity, four screens: connect, review, run, and restore (a dialog). All TV work runs on one worker thread. */
 public class MainActivity extends Activity {
@@ -114,6 +115,7 @@ public class MainActivity extends Activity {
 
     // apps screen
     private static final int PICK_APK = 41;
+    private static final int PICK_WEBVIEW = 42;
     private List<AppManager.App> apps = new ArrayList<>();
     private boolean showSystemApps;
     private boolean showRemovedApps;
@@ -1036,6 +1038,37 @@ public class MainActivity extends Activity {
         });
         root.addView(install, matchWrap());
 
+        Button webview = button("Update the TV's WebView (needs root)", false);
+        webview.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent pick = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+                pick.addCategory(Intent.CATEGORY_OPENABLE);
+                pick.setType("*/*");
+                try {
+                    startActivityForResult(pick, PICK_WEBVIEW);
+                } catch (RuntimeException e) {
+                    toast("No file picker found on this phone.");
+                }
+            }
+        });
+        root.addView(webview, matchWrap());
+        Button webviewBack = button("Put back the original WebView", false);
+        webviewBack.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                new AlertDialog.Builder(MainActivity.this).setTitle("Put back the original WebView?")
+                    .setMessage("Copies the WebView the TV came with (saved the first time you updated it) back over the new one and restarts the TV.")
+                    .setPositiveButton("Put it back", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface d, int w) {
+                            restoreWebView();
+                        }
+                    }).setNegativeButton("Cancel", null).show();
+            }
+        });
+        root.addView(webviewBack, matchWrap());
+
         final EditText search = new EditText(this);
         search.setHint("Search by name");
         search.setSingleLine(true);
@@ -1267,6 +1300,18 @@ public class MainActivity extends Activity {
         super.onActivityResult(request, result, data);
         if (request == PICK_APK && result == RESULT_OK && data != null && data.getData() != null && shell != null) {
             installFromUri(data.getData());
+        } else if (request == PICK_WEBVIEW && result == RESULT_OK && data != null && data.getData() != null && shell != null) {
+            final Uri uri = data.getData();
+            new AlertDialog.Builder(this).setTitle("Replace the TV's WebView?")
+                .setMessage("This writes the chosen WebView over the TV's built-in one and restarts the TV. It needs 'adb root' on the TV. "
+                    + "The original is saved on the TV first and put back automatically if the new one does not work, "
+                    + "but a TV that never starts again cannot be fixed from here. Use the WebView APK for Android 7 (API 24).")
+                .setPositiveButton("Replace it", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface d, int w) {
+                        swapWebView(uri);
+                    }
+                }).setNegativeButton("Cancel", null).show();
         }
     }
 
@@ -1312,6 +1357,83 @@ public class MainActivity extends Activity {
                     copy.delete();
                 }
                 finish(err != null, err != null ? "Failed: " + err : "Installed.");
+            }
+        });
+    }
+
+    private void swapWebView(final Uri uri) {
+        showRun("Update the TV's WebView");
+        afterRun = new Runnable() {
+            @Override
+            public void run() {
+                loadApps();
+            }
+        };
+        worker.execute(new Runnable() {
+            @Override
+            public void run() {
+                File copy = new File(getCacheDir(), "webview-source.apk");
+                File work = new File(getCacheDir(), "webview-converted.apk");
+                String err = null;
+                String done = "Done.";
+                try {
+                    String name = "the WebView";
+                    try (Cursor c = getContentResolver().query(uri, null, null, null, null)) {
+                        if (c != null && c.moveToFirst()) {
+                            int i = c.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+                            if (i >= 0 && c.getString(i) != null) name = c.getString(i);
+                        }
+                    } catch (RuntimeException ignored) {
+                        // keep the generic name
+                    }
+                    logger.log("Reading " + name + " from this phone...");
+                    try (InputStream in = getContentResolver().openInputStream(uri); FileOutputStream out = new FileOutputStream(copy)) {
+                        if (in == null) throw new IOException("the file picker returned nothing");
+                        byte[] buf = new byte[65536];
+                        int n;
+                        while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+                    }
+                    done = WebViewSwap.swap(shell, info, copy, name, work, logger);
+                } catch (CleanException e) {
+                    err = e.getMessage();
+                } catch (IOException e) {
+                    err = "Lost contact with the TV or could not read the file: " + e.getMessage();
+                } catch (RuntimeException e) {
+                    err = String.valueOf(e);
+                } finally {
+                    //noinspection ResultOfMethodCallIgnored
+                    copy.delete();
+                    //noinspection ResultOfMethodCallIgnored
+                    work.delete();
+                }
+                finish(err != null, err != null ? "Failed: " + err : done);
+            }
+        });
+    }
+
+    private void restoreWebView() {
+        showRun("Put back the original WebView");
+        afterRun = new Runnable() {
+            @Override
+            public void run() {
+                loadApps();
+            }
+        };
+        worker.execute(new Runnable() {
+            @Override
+            public void run() {
+                String err = null;
+                String done = "Done.";
+                try {
+                    done = WebViewSwap.restore(shell, logger);
+                } catch (CleanException e) {
+                    err = e.getMessage();
+                } catch (IOException e) {
+                    err = "Lost contact with the TV: " + e.getMessage();
+                } catch (RuntimeException e) {
+                    err = String.valueOf(e);
+                }
+                finish(err != null, err != null ? "Failed: " + err : done);
             }
         });
     }
