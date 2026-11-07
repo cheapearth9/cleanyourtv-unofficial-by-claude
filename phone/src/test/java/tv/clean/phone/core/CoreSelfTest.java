@@ -458,8 +458,8 @@ public final class CoreSelfTest {
         int[] fetched = {0};
         NoAdYoutube.Fetch counting = (c, abis, l) -> { fetched[0]++; return fromDisk.fetch(c, abis, l); };
         String again = NoAdYoutube.install(a, TvInfo.probe(a), NoAdYoutube.Choice.VACUUMTUBE, counting, log);
-        check(fetched[0] == 1 && again.startsWith("Updated") && a.installed.contains(NoAdYoutube.Choice.VACUUMTUBE.pkg),
-            "no-ad YouTube: an app that is already installed is downloaded and updated, not skipped");
+        check(fetched[0] == 0 && again.contains("already installed") && again.contains("update") && a.installed.contains(NoAdYoutube.Choice.VACUUMTUBE.pkg),
+            "no-ad YouTube: an app that is already installed is left alone, nothing downloaded");
 
         FakeTv b = fresh(25);
         try {

@@ -63,14 +63,16 @@ public final class NoAdYoutube {
     }
 
     /**
-     * Installs the chosen app, or updates it when it is already on the TV (the newest build is always downloaded and installed
-     * over the old one, keeping its data). A copy signed with another key can not be updated in place: it is uninstalled and
-     * the new one installed (the app's own data is lost; it only happens once). Returns a line for the summary.
+     * Installs the chosen app. One that is already on the TV is left alone (both apps update themselves from inside).
+     * Returns a line for the summary.
      */
     public static String install(TvShell sh, TvInfo tv, Choice c, Fetch fetch, Log log) throws IOException, CleanException {
-        boolean was = installed(sh, c);
+        if (installed(sh, c)) {
+            log.log(c.label + " is already on the TV, nothing to download.");
+            return c.label + " is already installed. If there's an update, you can do it in the app.";
+        }
         String abis = abis(sh);
-        log.log((was ? "Updating " : "Downloading ") + c.label + "...");
+        log.log("Downloading " + c.label + "...");
         File apk;
         try {
             apk = fetch.fetch(c, abis, log);
@@ -79,20 +81,13 @@ public final class NoAdYoutube {
                 + ". This phone needs internet access (not only the TV's Wi-Fi) for this step.");
         }
         try {
-            try {
-                ApkInstaller.install(sh, tv, apk, c.label, log);
-            } catch (CleanException e) {
-                if (!was || !e.getMessage().contains("signed by someone else")) throw e;
-                log.log("The " + c.label + " on the TV was signed with a different key; replacing it (its data is reset)...");
-                sh.run("pm uninstall " + c.pkg + " 2>&1", 120000);
-                ApkInstaller.install(sh, tv, apk, c.label, log);
-            }
+            ApkInstaller.install(sh, tv, apk, c.label, log);
         } finally {
             //noinspection ResultOfMethodCallIgnored
             apk.delete();
         }
         if (!installed(sh, c)) throw new CleanException("The TV said " + c.label + " was installed, but it is not on the TV.");
-        return (was ? "Updated " : "Installed ") + c.label + ": find it in the app list on the TV.";
+        return "Installed " + c.label + ": find it in the app list on the TV.";
     }
 
     /** Which of SmartTube's release files fits this TV: the exact processor type, else the universal one; null if none. */
