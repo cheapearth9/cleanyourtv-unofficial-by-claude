@@ -3,6 +3,9 @@ on:
   push:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   apk:
     runs-on: ubuntu-latest
@@ -22,3 +25,25 @@ jobs:
         with:
           name: cleanyourtv-phone-apk
           path: phone/build/outputs/apk/release/*.apk
+      - name: Name the APK
+        if: github.ref == 'refs/heads/main'
+        run: cp "$(ls phone/build/outputs/apk/release/*.apk | head -n 1)" cleanyourtv.apk
+      - name: Publish the APK on the Releases tab
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # The phone app, already unzipped (the Actions artifact above is always a zip), as one rolling release that always holds
+          # the newest build. Replace the file inside the existing release (no delete + create: GitHub sometimes answers a delete
+          # with an error and then the create fails because the tag is still there). Create the release only the first time.
+          NOTES="Built from commit $GITHUB_SHA by the build-apk workflow. Install this file on your phone; it can be installed over the older version."
+          for attempt in 1 2 3 4; do
+            if gh release view cleanyourtv-latest > /dev/null 2>&1; then
+              gh release upload cleanyourtv-latest cleanyourtv.apk --clobber && gh release edit cleanyourtv-latest --notes "$NOTES" && exit 0
+            else
+              gh release create cleanyourtv-latest cleanyourtv.apk --target "$GITHUB_SHA" --prerelease \
+                --title "CleanYourTV phone app (rolling build)" --notes "$NOTES" && exit 0
+            fi
+            echo "attempt $attempt failed, retrying"; sleep 10
+          done
+          exit 1

@@ -326,9 +326,9 @@ public final class CoreSelfTest {
         check(!ap.files.containsKey("/data/local/tmp/cyt-install.apk"), "APK install: temporary file removed from the TV");
         try {
             ApkInstaller.install(ap, TvInfo.probe(ap), bundle, "game.xapk", inst::add);
-            check(false, "a bundle is refused");
+            check(false, "a zip with no APK inside is refused");
         } catch (CleanException e) {
-            check(e.getMessage().contains("not a plain APK"), "an .xapk bundle is refused with an explanation");
+            check(e.getMessage().contains("not an APK"), "a zip with no APK inside is refused with an explanation");
         }
         ap.installResult = "Failure [INSTALL_FAILED_UPDATE_INCOMPATIBLE: Package x signatures do not match]\n";
         try {

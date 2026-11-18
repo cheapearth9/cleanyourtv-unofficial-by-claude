@@ -21,6 +21,10 @@ public final class Axml {
     public static final class Info {
         public String packageName = "";
         public long versionCode = -1;
+        /** The "split" attribute: the name of a split APK ("config.arm64_v8a"); empty for a base APK. */
+        public String splitName = "";
+        /** The "configForSplit" attribute: which split a config split belongs to ("" means the base APK). */
+        public String configForSplit = "";
         /** Every string of the manifest, for "does it mention X" checks. */
         public List<String> strings = new ArrayList<>();
     }
@@ -164,6 +168,10 @@ public final class Axml {
                         int raw = u32(b, a + 8);
                         if (n.equals("package") && raw >= 0 && raw < pool.strings.size()) {
                             info.packageName = pool.strings.get(raw);
+                        } else if (n.equals("split") && raw >= 0 && raw < pool.strings.size()) {
+                            info.splitName = pool.strings.get(raw);
+                        } else if (n.equals("configForSplit") && raw >= 0 && raw < pool.strings.size()) {
+                            info.configForSplit = pool.strings.get(raw);
                         } else if (n.equals("versionCode")) {
                             info.versionCode = u32(b, a + 16) & 0xffffffffL;
                         }

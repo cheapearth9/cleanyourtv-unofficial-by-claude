@@ -4,7 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.zip.ZipFile;
 
-/** Installs an APK that lives on the phone onto the TV: push to /data/local/tmp, pm install, clean up. */
+/** Installs an APK, or a bundle of APKs (.apkm, .xapk, .apks), that lives on the phone onto the TV: push to /data/local/tmp, pm install, clean up. */
 public final class ApkInstaller {
     private ApkInstaller() {}
 
@@ -21,8 +21,12 @@ public final class ApkInstaller {
 
     public static void install(TvShell sh, TvInfo tv, File apk, String displayName, final Log log) throws IOException, CleanException {
         if (!looksLikeApk(apk)) {
-            throw new CleanException(displayName + " is not a plain APK. Bundles (.xapk, .apks, .apkm) and other files cannot be installed this way: "
-                + "get the single .apk version of the app.");
+            if (!BundleInstaller.isBundle(apk)) {
+                throw new CleanException(displayName + " is not an APK, and it is not a bundle of APKs (.apkm, .xapk, .apks) either.");
+            }
+            File dir = apk.getAbsoluteFile().getParentFile();
+            log.log(BundleInstaller.install(sh, tv, apk, displayName, dir == null ? new File(".") : dir, log));
+            return;
         }
         log.log("Sending " + displayName + " (" + (apk.length() / 1024) + " KB) to the TV...");
         final int[] lastTenth = {-1};
@@ -56,6 +60,9 @@ public final class ApkInstaller {
         }
         if (out.contains("INSTALL_FAILED_VERSION_DOWNGRADE")) return "A newer version of this app is already installed.";
         if (out.contains("INSTALL_FAILED_NO_MATCHING_ABIS")) return "This app has no build for this TV's processor (for example a 64-bit-only app on a 32-bit box).";
+        if (out.contains("INSTALL_FAILED_MISSING_SPLIT") || out.contains("Missing split")) {
+            return "Some parts of this bundle are missing, so the TV refused it (" + Cleaner.lastLine(out) + ").";
+        }
         if (out.contains("INSTALL_FAILED_OLDER_SDK")) return "This app needs a newer Android than this TV runs (API " + tv.sdk + ").";
         if (out.contains("INSTALL_FAILED_DUPLICATE_PERMISSION") || out.contains("INSTALL_FAILED_CONFLICTING_PROVIDER")) {
             return "Another app on the TV clashes with this one (" + Cleaner.lastLine(out) + ").";

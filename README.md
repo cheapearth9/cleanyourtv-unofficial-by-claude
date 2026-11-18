@@ -6,6 +6,10 @@ clean launcher as the Home screen. It is built to run on **Android 7.0 / 7.1 (AP
 and to work on **any** model: 345 per-TV lists are bundled, and TVs that are in none get a reviewable suggestion
 based on what the other TVs disable.
 
+## Download the APK
+
+Every build of `main` is published, already unzipped, on the [Releases tab](../../releases/tag/cleanyourtv-latest) as `cleanyourtv.apk`. Install it over the old one.
+
 ## Build the APK
 
 No Android SDK is needed on your computer if you use GitHub:

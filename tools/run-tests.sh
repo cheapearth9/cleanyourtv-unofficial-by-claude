@@ -9,6 +9,7 @@ javac -Xlint:-options -d "$OUT" $(find phone/src/main/java/tv/clean/phone/adb ph
 java -cp "$OUT" tv.clean.phone.adb.AdbSelfTest
 java -cp "$OUT" tv.clean.phone.core.CoreSelfTest phone/src/main/assets/db/models.txt
 java -cp "$OUT" tv.clean.phone.core.WebViewSelfTest
+java -cp "$OUT" tv.clean.phone.core.BundleSelfTest
 java -cp "$OUT" tv.clean.phone.adb.ReconnectSelfTest
 # the java.time stand-in the launcher uses on Android 7, checked against the real java.time on this JDK
 mkdir -p "$OUT/time"

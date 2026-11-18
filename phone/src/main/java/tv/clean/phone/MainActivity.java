@@ -1022,7 +1022,7 @@ public class MainActivity extends Activity {
         root.addView(dim(info.title() + ". Tap Uninstall to remove an app from the TV. System apps are only removed for this TV's user "
             + "and can be brought back from the Removed list."));
 
-        Button install = button("Install an APK from this phone", true);
+        Button install = button("Install an APK or bundle from this phone", true);
         install.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {

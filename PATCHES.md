@@ -124,3 +124,9 @@ The phone app (`phone/`) is new code. Its debloat logic is a port of upstream `t
   4096-aligned, signs it, saves the TV's original WebView in `/data/local/cyt-webview-original.apk`, writes the new one over the
   system file (`adb root` + `adb remount`), restarts the TV, and puts the original back by itself if the TV does not take the new
   one. Tested against a pretend TV and with the JDK's own signature check; not yet tried on a real TV.
+* Apps screen (phone app): the APK installer also takes bundles: .apkm, .xapk, .apks and any zip of APKs. It reads the manifest of each
+  APK inside to tell the main APK from its splits, keeps only the splits this TV can use (its CPU type, the closest screen density,
+  English and the TV's language, feature splits always), sends them and installs them together with `pm install-multiple`; .obb
+  expansion files of an .xapk go to `/sdcard/Android/obb/<package>/`. A zip with several apps installs each one.
+* CI: every build of `main` publishes the phone APK, already unzipped, on the Releases tab as the rolling release `cleanyourtv-latest`
+  (file `cleanyourtv.apk`), next to the Actions artifact (which GitHub always zips).
